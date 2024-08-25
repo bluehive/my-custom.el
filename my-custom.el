@@ -1,3 +1,42 @@
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ddskk
+(use-package ddskk-autoloads
+  :ensure ddskk)
+
+;;(require 'skk)
+
+(global-set-key (kbd "C-x C-j") 'skk-mode)
+;; (global-set-key "\C-xj" 'skk-auto-fill-mode) ;; 改行を自動入力する場合
+;; (global-set-key "\C-xt" 'skk-tutorial)       ;; チュートリアル
+(setq default-input-method "japanese-skk")
+
+;;(setq skk-user-directory "~/Dropbox/emacs/SKK") ;; 設定ファイル、個人辞書ファイルの置き場
+;;(setq skk-init-file "~/Dropbox/emacs/SKK/init") ;; 設定ファイルの指定
+
+;; (leaf ddskk
+;;       :ensure t
+;;       :bind
+;;       ("C-x j" . skk-mode))
+
+;;(leaf skk-study  :ensure t)
+;;(leaf skk-hint  :ensure t)
+
+;; Windows 環境だと [noconvert]
+(setq skk-sticky-key [muhenkan])
+(when (equal system-type 'windows-nt)
+  (setq skk-sticky-key [noconvert])
+  )
+
+(require 'skk-hint)
+;;　muhenkanなどのキー名はどうやって取得するのかというと、 <f1> c を使います。その後に無変換キーを押せば「<muhenkan> is undefined」と出てきます。
+
+(when (require 'skk nil t)
+  (global-set-key (kbd "C-x j") 'skk-auto-fill-mode) ;;良い感じに改行を自動入力してくれる機能
+  (setq default-input-method "japanese-skk")         ;;emacs上での日本語入力にskkをつかう
+  (require 'skk-study))                              ;;変換学習機能の追加
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; common-lisp
 
