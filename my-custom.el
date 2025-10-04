@@ -648,6 +648,25 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; tomorrow-night-deepblue-theme.el (Emacs theme)
+;;; https://github.com/jamescherti/tomorrow-night-deepblue-theme.el?tab=readme-ov-file#tomorrow-night-deepblue-themeel-emacs-theme
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Installation
+;; To install tomorrow-night-deepblue-theme from MELPA:
+;; If you haven't already done so, add MELPA repository to your Emacs configuration.
+;; Add the following code to your Emacs init file to install tomorrow-night-deepblue from MELPA:
+
+(use-package tomorrow-night-deepblue-theme
+  :ensure t
+  :config
+  ;; Disable all themes and load the Tomorrow Night Deep Blue theme
+  (mapc #'disable-theme custom-enabled-themes)
+  ;; Load the tomorrow-night-deepblue theme
+  (load-theme 'tomorrow-night-deepblue t))
+
+
+
 
 
 
