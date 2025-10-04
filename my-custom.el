@@ -311,6 +311,11 @@
           )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;; anaconda ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;(add-to-list 'python-shell-extra-pythonpaths "/path/to/the/dependency")
+
+(setq python-shell-interpreter "c:/tools/miniconda3/python.exe")
+
 ;;;;;;;;;;;;;;;;;;;; janet-mode ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
