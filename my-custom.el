@@ -1,559 +1,671 @@
-;;;;;; https://github.com/bluehive/minimal-emacs.d/tree/main?tab=readme-ov-file#update-minimal-emacsd
-;;; post init el
+;; -*- coding: utf-8 -*-
 
-;;;vterm 
-;; (use-package vterm
+;;; my-custom prelude
+;;;;;
+;;;;;  https://qiita.com/nobuyuki86/items/b089d953938df1a10a12#%E8%83%8C%E6%99%AF
+  (use-package emacs
+    :custom (completion-ignore-case t) ;; 小文字と大文字を区別しない
+    :hook ((java-mode . (lambda ()
+                          (setq-local indent-tabs-mode t))))
+    :config
+    (which-function-mode +1) ;; 現在の機能（関数名等）をモードライン上に表示します
+
+    ;; 日本語の文字コード設定
+    (set-language-environment "Japanese")
+    (prefer-coding-system 'utf-8)
+    (when (eq system-type 'windows-nt)
+      (set-file-name-coding-system 'cp932)
+      (set-keyboard-coding-system 'cp932)
+      (set-terminal-coding-system 'cp932))
+
+    (set-charset-priority 'ascii
+                          'japanese-jisx0208
+                          'latin-jisx0201
+                          'katakana-jisx0201
+                          'iso-8859-1
+                          'cp1252
+                          'unicode)
+    (set-coding-system-priority 'utf-8
+                                'euc-jp
+                                'iso-2022-jp
+                                'cp932))
+
+
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (use-package embark
+    ;; Embark is an Emacs package that acts like a context menu, allowing
+    ;; users to perform context-sensitive actions on selected items
+    ;; directly from the completion interface.
+    :ensure t
+    :defer t
+    :bind
+    (("C-." . embark-act)         ;; pick some comfortable binding
+     ("C-;" . embark-dwim)        ;; good alternative: M-.
+     ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
+
+    :init
+    (setq prefix-help-command #'embark-prefix-help-command)
+
+    :config
+    ;; Hide the mode line of the Embark live/completions buffers
+    (add-to-list 'display-buffer-alist
+                 '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+                   nil
+                   (window-parameters (mode-line-format . none)))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; avy 希望するところにジャンプする
+;;;
+  (use-package avy
+    :ensure t
+    :config
+    (global-set-key (kbd "C-:") 'avy-goto-char)
+    (global-set-key (kbd "C-'") 'avy-goto-char-2)
+    (global-set-key (kbd "M-g f") 'avy-goto-line)
+    (global-set-key (kbd "M-g w") 'avy-goto-word-1)
+    (global-set-key (kbd "M-g e") 'avy-goto-word-0)
+    (avy-setup-default)
+    nil)                 ; end of PROGN
+
+
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;; add custom elisp ;;;;
+;;;;; https://qiita.com/nobuyuki86/items/122e85b470b361ded0b4#%E3%83%95%E3%82%A9%E3%83%BC%E3%82%AB%E3%82%B9%E3%82%A2%E3%82%A6%E3%83%88%E6%99%82%E3%81%AB%E5%85%A8%E3%83%90%E3%83%83%E3%83%95%E3%82%A1%E3%82%92%E4%BF%9D%E5%AD%98
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; ;;;OS判定用定数
+;; (defconst IS-MAC (eq system-type 'darwin))
+;; (defconst IS-LINUX (memq system-type '(gnu gnu/linux gnu/kfreebsd berkeley-unix)))
+;; (defconst IS-WINDOWS (memq system-type '(cygwin windows-nt ms-dos)))
+
+;; ;;; ファイル選択ウインドウを使用しない
+;; (setq use-file-dialog nil)
+;; ;;; Xリソースを使用しない
+;; (setq inhibit-x-resources t)
+;; ;;;バッファメニューの使用を抑制
+;; (setq inhibit-startup-buffer-menu t)
+
+;; ;;;auto-save-visited 一定時間経過しても操作がない場合、バッファを自動保存します。
+
+;; (use-package files
+;;   :ensure nil
+;;   :config
+;;   (setq auto-save-visited-interval 30)
+;;   (auto-save-visited-mode +1))
+
+;; ;;;フォーカスアウト時に全バッファを保存
+;; (defun my/save-all-buffers ()
+;;   (save-some-buffers "!"))
+
+;; (add-hook 'focus-out-hook #'my/save-all-buffers)
+
+;;;デーモン起動 emacsclient コマンドで高速にファイルが開けます。
+
+;; (use-package server
+;;   :config
+;;   (unless (server-running-p)
+;;     (server-start)))
+
+;; ;;;最後のカーソル位置を保存する
+;; (use-package saveplace
+;;   :init
+;;   (save-place-mode +1))
+;; ;;;ファイルの閲覧履歴を保存する
+;; (use-package recentf
+;;   :init
+;;   (setq recentf-max-saved-items 100)
+;;   (recentf-mode +1))
+;; ;;;コマンドの履歴を保存
+;; (use-package savehist
+;;   :init
+;;   (savehist-mode +1))
+
+;; ;;;他プロセスの編集をバッファに反映
+;; (use-package autorevert
+;;   :init
+;;   (global-auto-revert-mode +1))
+
+;;;Windowsの最適化
+;; (when IS-WINDOWS
+;;   (setq w32-get-true-file-attributes nil
+;;         w32-pipe-read-delay 0
+;;         w32-pipe-buffer-size (* 64 1024)))
+
+;; ;;;各OS最適化
+;; (when IS-WINDOWS
+;;   (setq w32-use-native-image-API t))
+
+;; (unless IS-MAC
+;;   (setq command-line-ns-option-alist nil))
+
+;; (unless IS-LINUX
+;;   (setq command-line-x-option-alist nil))
+
+
+;;;org
+;;;org-mode に関する基本的な設定をしています。
+
+(use-package org
+  :init
+  (setq org-return-follows-link t  ; Returnキーでリンク先を開く
+        org-mouse-1-follows-link t ; マウスクリックでリンク先を開く
+        ))
+
+;;;アンダースコアを入力しても下付き文字にならないようにする
+(setq org-use-sub-superscripts '{}
+      org-export-with-sub-superscripts nil)
+
+;;;org-agenda
+;;;org-agenda のディレクトリを指定しています。
+
+(use-package org-agenda
+  :ensure nil
+  :after org
+  :config
+  (setq org-agenda-files (file-expand-wildcards (concat org-directory "/*.org"))))
+
+;;;org-indent-mode
+;;;インデント機能を有効にしています。
+
+(use-package org-indent
+  :ensure nil
+  :hook (org-mode . org-indent-mode))
+
+;; ox-qmd (qiita投稿用)
+;; orgファイルをmarkdownファイルに変換してくれます。
+
+(use-package ox-qmd
+  :defer t)
+
+
+;; IME
+;; Emacsは~C-\~で日本語入力を切り替えることができますが、デフォルトだとあまり補完が賢くないのでOSに合わせて導入します。
+
+;;;tr-ime
+
+;; (use-package tr-ime
+;;   :ensure t
+;;   :if IS-WINDOWS   ;;  windows はんていーーーーーーーーーーーーーーーー！！！
+;;   :config
+;;   (setq default-input-method "W32-IME")
+;;   (tr-ime-standard-install)
+;;   (w32-ime-initialize))
+
+;; nyan-mode
+;; バッファー上での位置をニャンキャットが教えてくれるパッケージです。マウスでクリックすると大体の位置にジャンプもできます。
+
+;; (use-package nyan-mode
+;;   :ensure t
+;;   :init
+;;   (setq nyan-bar-length 24)
+;;   (nyan-mode +1))
+
+;; minions
+;; デフォルトのモードラインでは各言語のメジャーモードやマイナーモードが全て表示されますが、こちらのパッケージを導入することで、マイナーモードがハンバーガーメニューで表示され、マウスクリックで表示されるようになります。
+
+;; (use-package minions
+;;   :ensure t
+;;   :init
+;;   (minions-mode +1))
+
+
+;; which-key
+;; キーバインドを可視化してくれます。
+
+;; (use-package which-key
+;;   :ensure t
+;;   :config
+;;   (which-key-mode +1))
+
+;; ;; undo
+;; ;; undo-fu
+;; ;; Emacsのundoとredoを強化するパッケージです
+
+;; (use-package undo-fu
+;;   :ensure t
+;;   ;; :config
+;;   ;; (with-eval-after-load 'evil
+;;   ;;   (setq evil-undo-system 'undo-fu))
+;;   )
+;; ;; undo-fu-session
+;; ;; undo情報をEmacs終了後も保持してくれるようになります。
+
+;; (use-package undo-fu-session
+;;   :ensure t
+;;   :config
+;;   (undo-fu-session-global-mode +1))
+;; vundo
+;; undo履歴を視覚的に分かりやすく表示してくれます。代表的なものにundo-treeがありますが、vundoはundo-treeよりもシンプルな実装になっています。
+
+;; (use-package vundo
+;;   :ensure t
+;;   :config
+;;   ;; (with-eval-after-load 'meow
+;;   ;;   (meow-leader-define-key
+;;   ;;    '("u" . vundo)))
+;;   )
+
+;; rg
+;; ripgrep を利用してGrep検索してくれます。
+;; (use-package rg
+;;   :ensure t
+;;   :defer t)
+
+
+;; ;; ace-window
+;; ;; Emacsモダン化計画 -かわEmacs編-を参考に設定しています。ウィンドウの移動が楽になります。
+;; (use-package ace-window
+;;   :ensure t
+;;   :config
+;;   ;; (with-eval-after-load 'meow
+;;   ;;   (meow-leader-define-key
+;;   ;;    '("w" . ace-window)))
+;;   (custom-set-faces
+;;    '(aw-leading-char-face ((t (:foreground "red" :height 4.0))))))
+
+
+
+;; elisp
+;; highlight-defined
+;; 既知のシンボルに色を付けてくれます。
+
+;; (use-package highlight-defined
+;;   :ensure t
+;;   :hook (emacs-lisp-mode . highlight-defined-mode))
+
+;; ;; highlight-quoted
+;; ;; 引用符と引用記号を色付けしてくれます。
+
+;; (use-package highlight-quoted
+;;   :ensure t
+;;   :hook (emacs-lisp-mode . highlight-quoted-mode))
+
+;; breadcrumb
+;; バッファ上部にパンくずリストを表示してくれます。
+
+;; (use-package breadcrumb
+;;   :vc ( :fetcher github :repo "joaotavora/breadcrumb")
+;;   :config
+;;   (breadcrumb-mode +1))
+
+;; rainbow-delimiters
+;; 括弧の深さに応じて色付けをしてくれます。
+
+;; (use-package rainbow-delimiters
+;;   :ensure t
+;;   :hook (prog-mode . rainbow-delimiters-mode))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; slime-mode
+(setq inferior-lisp-program "C:\\ProgramFiles\\SteelBankCommonLisp\\sbcl.exe")
+
+(add-hook 'slime-mode-hook
+          (lambda ()
+            (unless (slime-connected-p)
+              (save-excursion (slime))))
+          )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;; janet-mode ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(use-package janet-mode
+  :ensure t
+  :mode (("\\.janet\\'" . janet-mode))
+  :hook ((janet-mode . paredit-mode)
+         (janet-mode . rainbow-delimiters-mode)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; 日本語環境の設定
+
+;; (set-language-environment "Japanese")
+;; (prefer-coding-system 'utf-8)
+;; (set-default 'buffer-file-coding-system 'utf-8)
+
+;; ;; Windowsにおけるフォントの設定（Consolasとメイリオ）
+;; (when (eq system-type 'windows-nt)
+;;   (set-face-attribute 'default nil :family "Consolas" :height 110)
+;;   (set-fontset-font 'nil 'japanese-jisx0208
+;;                     (font-spec :family "メイリオ"))
+;;   (add-to-list 'face-font-rescale-alist
+;;                '(".*メイリオ.*" . 1.08))
+;;   )
+
+;; ;; GNU/Linuxにおけるフォントの設定（IncosolataとIPA exGothic）
+;; (when (eq system-type 'gnu/linux)
+;;   (set-frame-font "Inconsolata-14")
+;;   (set-fontset-font t 'japanese-jisx0208 (font-spec :family "IPAExGothic"))
+;;   )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Org modeの設定
+;;"C:\Users\mevius\iCloudDrive\my-journals\2024"
+;; ファイルの場所
+(setq org-directory "C:\\Users\\mevius\\iCloudDrive\\my-journals\\2024")
+;;(setq org-directory "~/Dropbox/Org")
+(setq org-default-notes-file "my-note.org")
+
+;; Org-captureの設定
+;; Org-captureを呼び出すキーシーケンス
+(define-key global-map "\C-cc" 'org-capture)
+;; Org-captureのテンプレート（メニュー）の設定
+(setq org-capture-templates
+      '(("n" "Note" entry
+         (file+headline "C:\\Users\\mevius\\iCloudDrive\\my-journals\\2024\\my-note.org" "Notes")
+         "* %?\nEntered on %U\n %i\n %a")
+        ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; org-journal
+
+;; (use-package org-journal
 ;;   :ensure t
 ;;   :defer t
-;;   :commands vterm
-;;   :config
-;;   ;; Speed up vterm
-;;   (setq vterm-timer-delay 0.01))
+;;  ;; :init
+;;   ;; Change default prefix key; needs to be set before loading org-journal
+;;  ;; (setq org-journal-prefix-key "C-c c-v ")
+;;   :custom
+;;   (org-journal-dir "C:\\Users\\mevius\\iCloudDrive\\my-journals")
+;;   (org-journal-date-format "%A, %d %B %Y"))
+
+;; ;; When =org-journal-file-pattern= has the default value, this would be the regex.
+;; (setq org-agenda-file-regexp "\\`\\\([^.].*\\.org\\\|[0-9]\\\{8\\\}\\\(\\.gpg\\\)?\\\)\\'")
+;; (add-to-list 'org-agenda-files org-journal-dir)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; 終了のemacs保存設定
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Vertico、Consult、Embark は、Emacs の補完機能とナビゲーション機能を総合的に強化
+;; (defun my-set-savehist-additional-variables (&optional file)
+;;   (let (histvars othervars)
+;;     (ignore file)
+;;     (setq histvars (apropos-internal "-\\(\\(history\\)\\|\\(ring\\)\\)\\'" 'boundp))
+;;     (setq othervars
+;;           (append othervars
+;;                   (when desktop-save-mode
+;;                     (append
+;;                      desktop-globals-to-save
+;;                      desktop-locals-to-save
+;;                      ))
+;;                   savehist-minibuffer-history-variables
+;;                   savehist-ignored-variables
+;;                   ))
+;;     (dolist (ovar othervars)
+;;       (setq histvars (delete ovar histvars)))
+;;     (setopt savehist-additional-variables histvars)))
 
-;; Tip: You can remove the `vertico-mode' use-package and replace it
-;;      with the built-in `fido-vertical-mode'.
-(use-package vertico
-  ;; (Note: It is recommended to also enable the savehist package.)
-  :ensure t
-  :defer t
-  :commands vertico-mode
-  :hook (after-init . vertico-mode))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; python org-babel
 
-(use-package orderless
-  ;; Vertico leverages Orderless' flexible matching capabilities, allowing users
-  ;; to input multiple patterns separated by spaces, which Orderless then
-  ;; matches in any order against the candidates.
-  :ensure t
-  :custom
-  (completion-styles '(orderless basic))
-  (completion-category-defaults nil)
-  (completion-category-overrides '((file (styles partial-completion)))))
-
-(use-package marginalia
-  ;; Marginalia allows Embark to offer you preconfigured actions in more contexts.
-  ;; In addition to that, Marginalia also enhances Vertico by adding rich
-  ;; annotations to the completion candidates displayed in Vertico's interface.
-  :ensure t
-  :defer t
-  :commands (marginalia-mode marginalia-cycle)
-  :hook (after-init . marginalia-mode))
-
-(use-package embark
-  ;; Embark is an Emacs package that acts like a context menu, allowing
-  ;; users to perform context-sensitive actions on selected items
-  ;; directly from the completion interface.
-  :ensure t
-  :defer t
-  :bind
-  (("C-." . embark-act)         ;; pick some comfortable binding
-   ("C-;" . embark-dwim)        ;; good alternative: M-.
-   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
-
-  :init
-  (setq prefix-help-command #'embark-prefix-help-command)
-
-  :config
-  ;; Hide the mode line of the Embark live/completions buffers
-  (add-to-list 'display-buffer-alist
-               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
-                 nil
-                 (window-parameters (mode-line-format . none)))))
-
-(use-package embark-consult
-  :ensure t
-  :hook
-  (embark-collect-mode . consult-preview-at-point-mode))
-
-(use-package consult
-  :ensure t
-  :bind (;; C-c bindings in `mode-specific-map'
-         ("C-c M-x" . consult-mode-command)
-         ("C-c h" . consult-history)
-         ("C-c k" . consult-kmacro)
-         ("C-c m" . consult-man)
-         ("C-c i" . consult-info)
-         ([remap Info-search] . consult-info)
-         ;; C-x bindings in `ctl-x-map'
-         ("C-x M-:" . consult-complex-command)
-         ("C-x b" . consult-buffer)
-         ("C-x 4 b" . consult-buffer-other-window)
-         ("C-x 5 b" . consult-buffer-other-frame)
-         ("C-x t b" . consult-buffer-other-tab)
-         ("C-x r b" . consult-bookmark)
-         ("C-x p b" . consult-project-buffer)
-         ;; Custom M-# bindings for fast register access
-         ("M-#" . consult-register-load)
-         ("M-'" . consult-register-store)
-         ("C-M-#" . consult-register)
-         ;; Other custom bindings
-         ("M-y" . consult-yank-pop)
-         ;; M-g bindings in `goto-map'
-         ("M-g e" . consult-compile-error)
-         ("M-g f" . consult-flymake)
-         ("M-g g" . consult-goto-line)
-         ("M-g M-g" . consult-goto-line)
-         ("M-g o" . consult-outline)
-         ("M-g m" . consult-mark)
-         ("M-g k" . consult-global-mark)
-         ("M-g i" . consult-imenu)
-         ("M-g I" . consult-imenu-multi)
-         ;; M-s bindings in `search-map'
-         ("M-s d" . consult-find)
-         ("M-s c" . consult-locate)
-         ("M-s g" . consult-grep)
-         ("M-s G" . consult-git-grep)
-         ("M-s r" . consult-ripgrep)
-         ("M-s l" . consult-line)
-         ("M-s L" . consult-line-multi)
-         ("M-s k" . consult-keep-lines)
-         ("M-s u" . consult-focus-lines)
-         ;; Isearch integration
-         ("M-s e" . consult-isearch-history)
-         :map isearch-mode-map
-         ("M-e" . consult-isearch-history)
-         ("M-s e" . consult-isearch-history)
-         ("M-s l" . consult-line)
-         ("M-s L" . consult-line-multi)
-         ;; Minibuffer history
-         :map minibuffer-local-map
-         ("M-s" . consult-history)
-         ("M-r" . consult-history))
-
-  ;; Enable automatic preview at point in the *Completions* buffer.
-  :hook (completion-list-mode . consult-preview-at-point-mode)
-
-  :init
-  ;; Optionally configure the register formatting. This improves the register
-  (setq register-preview-delay 0.5
-        register-preview-function #'consult-register-format)
-
-  ;; Optionally tweak the register preview window.
-  (advice-add #'register-preview :override #'consult-register-window)
-
-  ;; Use Consult to select xref locations with preview
-  (setq xref-show-xrefs-function #'consult-xref
-        xref-show-definitions-function #'consult-xref)
-
-  :config
-  (consult-customize
-   consult-theme :preview-key '(:debounce 0.2 any)
-   consult-ripgrep consult-git-grep consult-grep
-   consult-bookmark consult-recent-file consult-xref
-   consult--source-bookmark consult--source-file-register
-   consult--source-recent-file consult--source-project-recent-file
-   ;; :preview-key "M-."
-   :preview-key '(:debounce 0.4 any))
-  (setq consult-narrow-key "<"))
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((python . t)
+   (shell . t)))
 
 
-;;; Corfu は、ポイントの下または上に配置された現在の候補を含むコンパクトなポップアップを表示することで、バッファー内補完を強化します。
+;;;;;;;;;;;;;;;;;;;;;;;;;;; my custom elisp modules ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(use-package corfu
-  :ensure t
-  :defer t
-  :commands (corfu-mode global-corfu-mode)
-
-  :hook ((prog-mode . corfu-mode)
-         (shell-mode . corfu-mode)
-         (eshell-mode . corfu-mode))
-
-  :custom
-  ;; Hide commands in M-x which do not apply to the current mode.
-  (read-extended-command-predicate #'command-completion-default-include-p)
-  ;; Disable Ispell completion function. As an alternative try `cape-dict'.
-  (text-mode-ispell-word-completion nil)
-  (tab-always-indent 'complete)
-
-  ;; Enable Corfu
-  :config
-  (global-corfu-mode))
-
-(use-package cape
-  :ensure t
-  :defer t
-  :commands (cape-dabbrev cape-file cape-elisp-block)
-  :bind ("C-c p" . cape-prefix-map)
-  :init
-  ;; Add to the global default value of `completion-at-point-functions' which is
-  ;; used by `completion-at-point'.
-  (add-hook 'completion-at-point-functions #'cape-dabbrev)
-  (add-hook 'completion-at-point-functions #'cape-file)
-  (add-hook 'completion-at-point-functions #'cape-elisp-block))
-
-;;; theme blue
-
-(use-package tomorrow-night-deepblue-theme
-  :ensure t
-  :config
-  ;; Disable all themes and load the Tomorrow Night Deep Blue theme
-  (mapc #'disable-theme custom-enabled-themes)
-  ;; Load the tomorrow-night-deepblue theme
-  (load-theme 'tomorrow-night-deepblue t))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ddskk  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ddskk
 (use-package ddskk-autoloads
   :ensure ddskk)
+(require 'skk)
 
-;;(require 'skk)
-
-(global-set-key (kbd "C-x C-j") 'skk-mode)
+(global-set-key (kbd "\C-xj") 'skk-mode)
 ;; (global-set-key "\C-xj" 'skk-auto-fill-mode) ;; 改行を自動入力する場合
 ;; (global-set-key "\C-xt" 'skk-tutorial)       ;; チュートリアル
 (setq default-input-method "japanese-skk")
 
-;;(setq skk-user-directory "~/Dropbox/emacs/SKK") ;; 設定ファイル、個人辞書ファイルの置き場
-;;(setq skk-init-file "~/Dropbox/emacs/SKK/init") ;; 設定ファイルの指定
-
-;; (leaf ddskk
-;;       :ensure t
-;;       :bind
-;;       ("C-x j" . skk-mode))
-
-;;(leaf skk-study  :ensure t)
-;;(leaf skk-hint  :ensure t)
-
-;; Windows 環境だと [noconvert]
-(setq skk-sticky-key [muhenkan])
-(when (equal system-type 'windows-nt)
-  (setq skk-sticky-key [noconvert])
-  )
-
-(require 'skk-hint)
-;;　muhenkanなどのキー名はどうやって取得するのかというと、 <f1> c を使います。その後に無変換キーを押せば「<muhenkan> is undefined」と出てきます。
-
-(when (require 'skk nil t)
-  (global-set-key (kbd "C-x j") 'skk-auto-fill-mode) ;;良い感じに改行を自動入力してくれる機能
-  (setq default-input-method "japanese-skk")         ;;emacs上での日本語入力にskkをつかう
-  (require 'skk-study))                              ;;変換学習機能の追加
-
-;;; end of ddskk
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; common-lisp
-;;; https://emacs.stackexchange.com/questions/78868/how-to-install-common-lisp-with-emacs-and-slime-when-the-slime-helper-el-is-not#:~:text=The%20easy%20way%20is%20to%20just%20use-package%20the,part%20%28called%20SLYNK%29%20into%20your%20common%20lisp%20implementation.
-
-(use-package slime
-  :init
-  (progn
-    (require 'slime-autoloads)
-    (add-hook 'slime-mode-hook
-              (lambda ()
-                (unless (slime-connected-p)
-                  (save-excursion (slime))))))
-  :config
-  (progn
-    (use-package slime-company)
-    (setf inferior-lisp-program "/usr/bin/sbcl")
-    (slime-setup '(slime-fancy slime-company))
-    (setq slime-net-coding-system 'utf-8-unix)
-    (define-key lisp-mode-map (kbd "C-c C-q") 'slime-close-all-parens-in-sexp)
-    (define-key slime-mode-indirect-map (kbd "M-_") 'paredit-convolute-sexp)
-    (define-key slime-repl-mode-map (kbd "C-c C-z") #'quit-window)
-    (define-key slime-repl-mode-map (read-kbd-macro paredit-backward-delete-key) nil)))
-
-;;; parEdit
-(use-package paredit
-  :ensure t
-  :config
-  (autoload 'enable-paredit-mode "paredit" "Turn on pseudo-structural editing of Lisp code." t)
-    (add-hook 'emacs-lisp-mode-hook       #'enable-paredit-mode)
-    (add-hook 'eval-expression-minibuffer-setup-hook #'enable-paredit-mode)
-    (add-hook 'ielm-mode-hook             #'enable-paredit-mode)
-    (add-hook 'lisp-mode-hook             #'enable-paredit-mode)
-    (add-hook 'lisp-interaction-mode-hook #'enable-paredit-mode)
-    (add-hook 'scheme-mode-hook           #'enable-paredit-mode)
-    ;; slime repl
-       (add-hook 'slime-repl-mode-hook (lambda () (paredit-mode +1)))
-       ;; SLIMEのREPLはDELをつかむという非常に迷惑な癖があり、pareditの正常な動作を妨げる。この問題を軽減するには、次のコードを使用します。
-
-          ;; Stop SLIME's REPL from grabbing DEL,
-          ;; which is annoying when backspacing over a '('
-          (defun override-slime-repl-bindings-with-paredit ()
-            (define-key slime-repl-mode-map
-                (read-kbd-macro paredit-backward-delete-key) nil))
-          (add-hook 'slime-repl-mode-hook 'override-slime-repl-bindings-with-paredit) )
-;;; paredit 
-;;; Each specifier is of the form:
-;;;   (key[s] function (example-input example-output) ...)
-;;; where key[s] is either a single string suitable for passing to KBD
-;;; or a list of such strings.  Entries in this list may also just be
-;;; strings, in which case they are headings for the next entries.
-
-(progn (setq paredit-commands
- `(
-   "Basic Insertion Commands"
-   ("("         paredit-open-round
-                ("(a b |c d)"
-                 "(a b (|) c d)")
-                ("(foo \"bar |baz\" quux)"
-                 "(foo \"bar (|baz\" quux)"))
-   (")"         paredit-close-round
-                ("(a b |c   )" "(a b c)|")
-                ("; Hello,| world!"
-                 "; Hello,)| world!"))
-   ("M-)"       paredit-close-round-and-newline
-                ("(defun f (x|  ))"
-                 "(defun f (x)\n  |)")
-                ("; (Foo.|"
-                 "; (Foo.)|"))
-   ("["         paredit-open-square
-                ("(a b |c d)"
-                 "(a b [|] c d)")
-                ("(foo \"bar |baz\" quux)"
-                 "(foo \"bar [|baz\" quux)"))
-   ("]"         paredit-close-square
-                ("(define-key keymap [frob|  ] 'frobnicate)"
-                 "(define-key keymap [frob]| 'frobnicate)")
-                ("; [Bar.|"
-                 "; [Bar.]|"))
-
-   ("\""        paredit-doublequote
-                ("(frob grovel |full lexical)"
-                 "(frob grovel \"|\" full lexical)"
-                 "(frob grovel \"\"| full lexical)")
-                ("(foo \"bar |baz\" quux)"
-                 "(foo \"bar \\\"|baz\" quux)")
-                ("(frob grovel)   ; full |lexical"
-                 "(frob grovel)   ; full \"|lexical"))
-   ("M-\""      paredit-meta-doublequote
-                ("(foo \"bar |baz\" quux)"
-                 "(foo \"bar baz\"| quux)")
-                ("(foo |(bar #\\x \"baz \\\\ quux\") zot)"
-                 ,(concat "(foo \"|(bar #\\\\x \\\"baz \\\\"
-                          "\\\\ quux\\\")\" zot)")))
-   ("\\"        paredit-backslash
-                ("(string #|)\n  ; Character to escape: x"
-                 "(string #\\x|)")
-                ("\"foo|bar\"\n  ; Character to escape: \""
-                 "\"foo\\\"|bar\""))
-   (";"         paredit-semicolon
-                ("|(frob grovel)"
-                 ";|(frob grovel)")
-                ("(frob |grovel)"
-                 "(frob ;|grovel\n )")
-                ("(frob |grovel (bloit\n               zargh))"
-                 "(frob ;|grovel\n (bloit\n  zargh))")
-                ("(frob grovel)          |"
-                 "(frob grovel)          ;|"))
-   ("M-;"       paredit-comment-dwim
-                ("(foo |bar)   ; baz"
-                 "(foo bar)                               ; |baz")
-                ("(frob grovel)|"
-                 "(frob grovel)                           ;|")
-                ("(zot (foo bar)\n|\n     (baz quux))"
-                 "(zot (foo bar)\n     ;; |\n     (baz quux))")
-                ("(zot (foo bar) |(baz quux))"
-                 "(zot (foo bar)\n     ;; |\n     (baz quux))")
-                ("|(defun hello-world ...)"
-                 ";;; |\n(defun hello-world ...)"))
-
-   (()          paredit-newline
-                ("(let ((n (frobbotz))) |(display (+ n 1)\nport))"
-                 ,(concat "(let ((n (frobbotz)))"
-                          "\n  |(display (+ n 1)"
-                          "\n           port))")))
-   ("RET"       paredit-RET)
-   ("C-j"       paredit-C-j)
-
-   "Deleting & Killing"
-   (,paredit-forward-delete-keys
-                paredit-forward-delete
-                ("(quu|x \"zot\")" "(quu| \"zot\")")
-                ("(quux |\"zot\")"
-                 "(quux \"|zot\")"
-                 "(quux \"|ot\")")
-                ("(foo (|) bar)" "(foo | bar)")
-                ("|(foo bar)" "(|foo bar)"))
-   (,paredit-backward-delete-key
-                paredit-backward-delete
-                ("(\"zot\" q|uux)" "(\"zot\" |uux)")
-                ("(\"zot\"| quux)"
-                 "(\"zot|\" quux)"
-                 "(\"zo|\" quux)")
-                ("(foo (|) bar)" "(foo | bar)")
-                ("(foo bar)|" "(foo bar|)"))
-   ("C-d"       paredit-delete-char
-                ("(quu|x \"zot\")" "(quu| \"zot\")")
-                ("(quux |\"zot\")"
-                 "(quux \"|zot\")"
-                 "(quux \"|ot\")")
-                ("(foo (|) bar)" "(foo | bar)")
-                ("|(foo bar)" "(|foo bar)"))
-   ("C-k"       paredit-kill
-                ("(foo bar)|     ; Useless comment!"
-                 "(foo bar)|")
-                ("(|foo bar)     ; Useful comment!"
-                 "(|)     ; Useful comment!")
-                ("|(foo bar)     ; Useless line!"
-                 "|")
-                ("(foo \"|bar baz\"\n     quux)"
-                 "(foo \"|\"\n     quux)"))
-   ("M-d"       paredit-forward-kill-word
-                ("|(foo bar)    ; baz"
-                 "(| bar)    ; baz"
-                 "(|)    ; baz"
-                 "()    ;|")
-                (";;;| Frobnicate\n(defun frobnicate ...)"
-                 ";;;|\n(defun frobnicate ...)"
-                 ";;;\n(| frobnicate ...)"))
-   (,(concat "M-" paredit-backward-delete-key)
-                paredit-backward-kill-word
-                ("(foo bar)    ; baz\n(quux)|"
-                 "(foo bar)    ; baz\n(|)"
-                 "(foo bar)    ; |\n()"
-                 "(foo |)    ; \n()"
-                 "(|)    ; \n()"))
-
-   "Movement & Navigation"
-   ("C-M-f"     paredit-forward
-                ("(foo |(bar baz) quux)"
-                 "(foo (bar baz)| quux)")
-                ("(foo (bar)|)"
-                 "(foo (bar))|"))
-   ("C-M-b"     paredit-backward
-                ("(foo (bar baz)| quux)"
-                 "(foo |(bar baz) quux)")
-                ("(|(foo) bar)"
-                 "|((foo) bar)"))
-   ("C-M-u"     paredit-backward-up)
-   ("C-M-d"     paredit-forward-down)
-   ("C-M-p"     paredit-backward-down)  ; Built-in, these are FORWARD-
-   ("C-M-n"     paredit-forward-up)     ; & BACKWARD-LIST, which have
-                                        ; no need given C-M-f & C-M-b.
-
-   "Depth-Changing Commands"
-   ("M-("       paredit-wrap-round
-                ("(foo |bar baz)"
-                 "(foo (|bar) baz)"))
-   ("M-s"       paredit-splice-sexp
-                ("(foo (bar| baz) quux)"
-                 "(foo bar| baz quux)"))
-   (("M-<up>" "ESC <up>")
-                paredit-splice-sexp-killing-backward
-                ("(foo (let ((x 5)) |(sqrt n)) bar)"
-                 "(foo |(sqrt n) bar)"))
-   (("M-<down>" "ESC <down>")
-                paredit-splice-sexp-killing-forward
-                ("(a (b c| d e) f)"
-                 "(a b c| f)"))
-   ("M-r"       paredit-raise-sexp
-                ("(dynamic-wind in (lambda () |body) out)"
-                 "(dynamic-wind in |body out)"
-                 "|body"))
-   ("M-?"       paredit-convolute-sexp
-                ("(let ((x 5) (y 3)) (frob |(zwonk)) (wibblethwop))"
-                 "(frob |(let ((x 5) (y 3)) (zwonk) (wibblethwop)))"))
-
-   "Barfage & Slurpage"
-   (("C-)" "C-<right>")
-                paredit-forward-slurp-sexp
-                ("(foo (bar |baz) quux zot)"
-                 "(foo (bar |baz quux) zot)")
-                ("(a b ((c| d)) e f)"
-                 "(a b ((c| d) e) f)"))
-   (("C-}" "C-<left>")
-                paredit-forward-barf-sexp
-                ("(foo (bar |baz quux) zot)"
-                 "(foo (bar |baz) quux zot)"))
-   (("C-(" "C-M-<left>" "ESC C-<left>")
-                paredit-backward-slurp-sexp
-                ("(foo bar (baz| quux) zot)"
-                 "(foo (bar baz| quux) zot)")
-                ("(a b ((c| d)) e f)"
-                 "(a (b (c| d)) e f)"))
-   (("C-{" "C-M-<right>" "ESC C-<right>")
-                paredit-backward-barf-sexp
-                ("(foo (bar baz |quux) zot)"
-                 "(foo bar (baz |quux) zot)"))
-
-   "Miscellaneous Commands"
-   ("M-S"       paredit-split-sexp
-                ("(hello| world)"
-                 "(hello)| (world)")
-                ("\"Hello, |world!\""
-                 "\"Hello, \"| \"world!\""))
-   ("M-J"       paredit-join-sexps
-                ("(hello)| (world)"
-                 "(hello| world)")
-                ("\"Hello, \"| \"world!\""
-                 "\"Hello, |world!\"")
-                ("hello-\n|  world"
-                 "hello-|world"))
-   ("C-c C-M-l" paredit-recenter-on-sexp)
-   ("M-q"       paredit-reindent-defun)
-   ))
-       nil)                             ; end of PROGN
+;;skk-azik
+(setq skk-use-azik t)
+;; M + x skk-get
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; org mode
-;;; https://github.com/magnars/.emacs.d/blob/master/settings/setup-org.el
-
-(defun myorg-update-parent-cookie ()
-  (when (equal major-mode 'org-mode)
-    (save-excursion
-      (ignore-errors
-        (org-back-to-heading)
-        (org-update-parent-todo-statistics)))))
-
-(defadvice org-kill-line (after fix-cookies activate)
-  (myorg-update-parent-cookie))
-
-(defadvice kill-whole-line (after fix-cookies activate)
-  (myorg-update-parent-cookie))
-
-(setq org-directory "~/my-project/journal/2025/")
-(setq org-default-notes-file (concat org-directory "/journal.org"))
-(define-key global-map (kbd "M-<f6>") 'org-capture)
-
-;; Add function to sort org-mode entries by their ** TODO -state
-
-(defun todo-to-int (todo)
-  (first (-non-nil
-          (mapcar (lambda (keywords)
-                    (let ((todo-seq
-                           (-map (lambda (x) (first (split-string  x "(")))
-                                 (rest keywords))))
-                      (cl-position-if (lambda (x) (string= x todo)) todo-seq)))
-                  org-todo-keywords))))
-
-(defun my/org-sort-key ()
-  (let* ((todo-max (apply #'max (mapcar #'length org-todo-keywords)))
-         (todo (org-entry-get (point) "TODO"))
-         (todo-int (if todo (todo-to-int todo) todo-max))
-         (priority (org-entry-get (point) "PRIORITY"))
-         (priority-int (if priority (string-to-char priority) org-default-priority)))
-    (format "%03d %03d" todo-int priority-int)
-    ))
-
-(defun my/org-sort-entries ()
-  (interactive)
-  (org-sort-entries nil ?f #'my/org-sort-key))
-
-;;(provide 'setup-org)
-
-;;; avy 希望するところにジャンプする
-;;; 
-(use-package avy
-  :ensure t
-  :config
-  (global-set-key (kbd "C-:") 'avy-goto-char)
-  (global-set-key (kbd "C-'") 'avy-goto-char-2)
-  (global-set-key (kbd "M-g f") 'avy-goto-line)
-  (global-set-key (kbd "M-g w") 'avy-goto-word-1)
-  (global-set-key (kbd "M-g e") 'avy-goto-word-0)
-  (avy-setup-default)
-  (global-set-key (kbd "C-c C-j") 'avy-resume))
+;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;   Motion aids
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 
-;;; end of file
 
+;; (use-package avy
+;;   :ensure t
+;;   :demand t
+;;   :bind (("C-c j" . avy-goto-line)
+;;          ("M-j"   . avy-goto-char-timer)))
+
+
+;;; Extra config: Researcher
+;;; Usage: Append or require this file from init.el for research
+;;; helps. If you write papers in LaTeX and need to manage your
+;;; citations or keep track of notes, this set of packages is for you.
+;;;
+;;; Denote is a note taking package that facilitates a Zettelkasten
+;;; method. Denote works by enforcing a particular file naming
+;;; strategy. This makes it easy to link and tag notes.
+;;;
+;;; NOTE: the Citar package lives on the MELPA repository; you will
+;;; need to update the `package-archives' variable in init.el before
+;;; before loading this; see the comment in init.el under "Package
+;;; initialization".
+;;;
+;;; Highly recommended to enable this file with the UI enhancements in
+;;; `base.el', as Citar works best with the Vertico completing-read
+;;; interface. Also recommended is the `writer.el' extra config, which
+;;; adds some nice features for spell-checking etc.
+
+;;; Contents:
+;;;
+;;;  - Citation Management
+;;;  - Authoring
+;;;  - Note Taking: Denote
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;   Critical variables
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;   Citation Management
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; (use-package citar
+;;   :ensure t
+;;   :bind (("C-c b" . citar-insert-citation)
+;;          :map minibuffer-local-map
+;;          ("M-b" . citar-insert-preset))
+;;   :custom
+;;   ;; Allows you to customize what citar-open does
+;;   (citar-file-open-functions '(("html" . citar-file-open-external)
+;;                                ;; ("pdf" . citar-file-open-external)
+;;                                (t . find-file))))
+
+;; ;; Optional: if you have the embark package installed, enable the ability to act
+;; ;; on citations with Citar by invoking `embark-act'.
+;; (use-package citar-embark
+
+;;  :after citar embark
+;;  :diminish ""
+;;  :no-require
+;;  :config (citar-embark-mode))
+
+;; ;;; These variables must be set for Citar to work properly!
+;; (setq citar-bibliography '("~/refs.bib")) ; paths to your bibtex files
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;   Authoring
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO; package or configuration suggestions welcome
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;   Note Taking: Denote
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Denote is a simple but powerful note-taking system that relies on a
+;; file-naming schema to make searching and finding notes easily. The
+;; Denote package provides commands that make the note taking scheme
+;; easy to follow. See the manual at:
+;;
+;;     https://protesilaos.com/emacs/denote
+;;
+;; (use-package denote
+;;   :ensure t
+;;   :config
+;;   (denote-rename-buffer-mode)
+;;   (require 'denote-journal-extras)
+;;   (add-hook 'find-file-hook #'denote-link-buttonize-buffer)
+;;   (add-hook 'dired-mode-hook #'denote-dired-mode-in-directories)
+;;   (add-hook 'context-menu-functions #'denote-context-menu)
+
+;;   (denote-rename-buffer-mode +1)
+;;   )
+
+;; denote
+;; org用のシンプルなメモ取りツールとして愛用しています。
+;; (use-package denote
+;;   :ensure t
+;;   :init
+;;   (with-eval-after-load 'org
+;;     (setq denote-directory org-directory))
+
+;;   :config
+;;   ;; (with-eval-after-load 'meow
+;;   ;;   (meow-leader-define-key
+;;   ;;    '("d" . denote-open-or-create)))
+;;   (require 'denote-journal-extras)
+;; ;;  (add-hook 'find-file-hook #'denote-link-buttonize-buffer)
+;;   ;; (add-hook 'dired-mode-hook #'denote-dired-mode-in-directories)
+;;   ;; (add-hook 'context-menu-functions #'denote-context-menu)
+
+;;   (denote-rename-buffer-mode +1))
+
+;;; These variables are needed for Denote
+;;(setq denote-directory (expand-file-name "c:/Users/mevius/Documents/my-notes/ "))
+
+
+;; ;; Integrate citar and Denote: take notes on bibliographic entries
+;; ;; through Denote
+;; (use-package citar-denote
+;;   :ensure t
+;;   :after (:any citar denote)
+;;   :custom
+;;   (citar-denote-file-type 'org)
+;;   (citar-denote-keyword "bib")
+;;   (citar-denote-signature nil)
+;;   (citar-denote-subdir "")
+;;   (citar-denote-template nil)
+;;   (citar-denote-title-format "title")
+;;   (citar-denote-title-format-andstr "and")
+;;   (citar-denote-title-format-authors 1)
+;;   (citar-denote-use-bib-keywords t)
+;;   :init
+;;   (citar-denote-mode))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;; embark
+;;;   Authoring
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; vertico の候補等に様々なアクションを提供してくれます。
+
+;; (use-package embark
+;;   :bind (("C-." . embark-act)         ;; pick some comfortable binding
+;;          ("C-;" . embark-dwim)        ;; good alternative: M-.
+;;          ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
+;;   :init
+;; ;;  (setq prefix-help-command #'embark-prefix-help-command)
+
+;;   :config
+;;   ;; Hide the mode line of the Embark live/completions buffers
+;;   (add-to-list 'display-buffer-alist
+;;                '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+;;                  nil
+;;                  (window-parameters (mode-line-format . none)))))
+;; ;;embark-consult
+;; ;;embark と consult を連動させます。
+
+;; (use-package embark-consult
+;;   :hook (embark-collect-mode . consult-preview-at-point-mode))
+
+
+
+;;;;;;;;;;;;;;;;;;;;; yatex ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; https://zenn.dev/maswag/books/latex-on-emacs/viewer/yatex
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (use-package yatex
+    ;; YaTeX がインストールされていない場合、package.elを使ってインストールする
+    :ensure t
+    ;; :commands autoload するコマンドを指定
+    :commands (yatex-mode)
+    ;; :mode auto-mode-alist の設定
+    :mode (("\\.tex$" . yatex-mode)
+           ("\\.ltx$" . yatex-mode)
+           ("\\.cls$" . yatex-mode)
+           ("\\.sty$" . yatex-mode)
+           ("\\.clo$" . yatex-mode)
+           ("\\.bbl$" . yatex-mode))
+    :init
+    (setq YaTeX-inhibit-prefix-letter t)
+    ;; :config キーワードはライブラリをロードした後の設定などを記述します。
+    :config
+    (setq YaTeX-kanji-code nil)
+    (setq YaTeX-latex-message-code 'utf-8)
+    (setq YaTeX-use-LaTeX2e t)
+    (setq YaTeX-use-AMS-LaTeX t)
+;;    (setq tex-command "/Library/TeX/texbin/latexmk -pdf -pvc -view=none")
+;;    (setq tex-pdfview-command "/usr/bin/open -a Skim")
+    (auto-fill-mode 0)
+    ;; company-tabnineによる補完。companyについては後述
+       (set (make-local-variable 'company-backends) '(company-tabnine))
+    )
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(provide 'my-custom)
+;;; custom.el ends here.
