@@ -30,41 +30,176 @@
                                 'iso-2022-jp
                                 'cp932))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; https://github.com/jamescherti/minimal-emacs.d?tab=readme-ov-file#configuring-vertico-consult-and-embark
+;; Vertico provides a vertical completion interface, making it easier to
+;; navigate and select from completion candidates (e.g., when `M-x` is pressed).
 
-   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  (use-package embark
-    ;; Embark is an Emacs package that acts like a context menu, allowing
-    ;; users to perform context-sensitive actions on selected items
-    ;; directly from the completion interface.
-    :ensure t
-    :defer t
-    :bind
-    (("C-." . embark-act)         ;; pick some comfortable binding
-     ("C-;" . embark-dwim)        ;; good alternative: M-.
-     ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
+;; (use-package vertico   ;;; prelude base config
+;;   ;; (Note: It is recommended to also enable the savehist package.)
+;;   :ensure t
+;;   :config
+;;   (vertico-mode))
 
-    :init
-    (setq prefix-help-command #'embark-prefix-help-command)
+;; Vertico leverages Orderless' flexible matching capabilities, allowing users
+;; to input multiple patterns separated by spaces, which Orderless then
+;; matches in any order against the candidates.
+(use-package orderless
+  :ensure t
+  :custom
+  (completion-styles '(orderless basic))
+  (completion-category-defaults nil)
+  (completion-category-overrides '((file (styles partial-completion)))))
 
-    :config
-    ;; Hide the mode line of the Embark live/completions buffers
-    (add-to-list 'display-buffer-alist
-                 '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
-                   nil
-                   (window-parameters (mode-line-format . none)))))
+;; Marginalia allows Embark to offer you preconfigured actions in more contexts.
+;; In addition to that, Marginalia also enhances Vertico by adding rich
+;; annotations to the completion candidates displayed in Vertico's interface.
+(use-package marginalia
+  :ensure t
+  :commands (marginalia-mode marginalia-cycle)
+  :hook (after-init . marginalia-mode))
+
+;; Embark integrates with Consult and Vertico to provide context-sensitive
+;; actions and quick access to commands based on the current selection, further
+;; improving user efficiency and workflow within Emacs. Together, they create a
+;; cohesive and powerful environment for managing completions and interactions.
+(use-package embark
+  ;; Embark is an Emacs package that acts like a context menu, allowing
+  ;; users to perform context-sensitive actions on selected items
+  ;; directly from the completion interface.
+  :ensure t
+  :commands (embark-act
+             embark-dwim
+             embark-export
+             embark-collect
+             embark-bindings
+             embark-prefix-help-command)
+  :bind
+  (("C-." . embark-act)         ;; pick some comfortable binding
+   ("C-;" . embark-dwim)        ;; good alternative: M-.
+   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
+
+  :init
+  (setq prefix-help-command #'embark-prefix-help-command)
+
+  :config
+  ;; Hide the mode line of the Embark live/completions buffers
+  (add-to-list 'display-buffer-alist
+               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+                 nil
+                 (window-parameters (mode-line-format . none)))))
+
+(use-package embark-consult
+  :ensure t
+  :hook
+  (embark-collect-mode . consult-preview-at-point-mode))
+
+;; Consult offers a suite of commands for efficient searching, previewing, and
+;; interacting with buffers, file contents, and more, improving various tasks.
+(use-package consult
+  :ensure t
+  :bind (;; C-c bindings in `mode-specific-map'
+         ("C-c M-x" . consult-mode-command)
+         ("C-c h" . consult-history)
+         ("C-c k" . consult-kmacro)
+         ("C-c m" . consult-man)
+         ("C-c i" . consult-info)
+         ([remap Info-search] . consult-info)
+         ;; C-x bindings in `ctl-x-map'
+         ("C-x M-:" . consult-complex-command)
+         ("C-x b" . consult-buffer)
+         ("C-x 4 b" . consult-buffer-other-window)
+         ("C-x 5 b" . consult-buffer-other-frame)
+         ("C-x t b" . consult-buffer-other-tab)
+         ("C-x r b" . consult-bookmark)
+     ;;error!     ("C-x p b" . consult-project-buffer)
+         ;; Custom M-# bindings for fast register access
+         ("M-#" . consult-register-load)
+         ("M-'" . consult-register-store)
+         ("C-M-#" . consult-register)
+         ;; Other custom bindings
+         ("M-y" . consult-yank-pop)
+         ;; M-g bindings in `goto-map'
+         ("M-g e" . consult-compile-error)
+         ("M-g f" . consult-flymake)
+         ("M-g g" . consult-goto-line)
+         ("M-g M-g" . consult-goto-line)
+         ("M-g o" . consult-outline)
+         ("M-g m" . consult-mark)
+         ("M-g k" . consult-global-mark)
+         ("M-g i" . consult-imenu)
+         ("M-g I" . consult-imenu-multi)
+         ;; M-s bindings in `search-map'
+         ("M-s d" . consult-find)
+         ("M-s c" . consult-locate)
+         ("M-s g" . consult-grep)
+         ("M-s G" . consult-git-grep)
+         ("M-s r" . consult-ripgrep)
+         ("M-s l" . consult-line)
+         ("M-s L" . consult-line-multi)
+         ("M-s k" . consult-keep-lines)
+         ("M-s u" . consult-focus-lines)
+         ;; Isearch integration
+         ("M-s e" . consult-isearch-history)
+         :map isearch-mode-map
+         ("M-e" . consult-isearch-history)
+         ("M-s e" . consult-isearch-history)
+         ("M-s l" . consult-line)
+         ("M-s L" . consult-line-multi)
+         ;; Minibuffer history
+         :map minibuffer-local-map
+         ("M-s" . consult-history)
+         ("M-r" . consult-history))
+
+  ;; Enable automatic preview at point in the *Completions* buffer.
+  :hook (completion-list-mode . consult-preview-at-point-mode)
+
+  :init
+  ;; Optionally configure the register formatting. This improves the register
+  (setq register-preview-delay 0.5
+        register-preview-function #'consult-register-format)
+
+  ;; Optionally tweak the register preview window.
+  (advice-add #'register-preview :override #'consult-register-window)
+
+  ;; Use Consult to select xref locations with preview
+  (setq xref-show-xrefs-function #'consult-xref
+        xref-show-definitions-function #'consult-xref)
+
+  ;; Aggressive asynchronous that yield instantaneous results. (suitable for
+  ;; high-performance systems.) Note: Minad, the author of Consult, does not
+  ;; recommend aggressive values.
+  ;; Read: https://github.com/minad/consult/discussions/951
+  ;;
+  ;; However, the author of minimal-emacs.d uses these parameters to achieve
+  ;; immediate feedback from Consult.
+  ;; (setq consult-async-input-debounce 0.02
+  ;;       consult-async-input-throttle 0.05
+  ;;       consult-async-refresh-delay 0.02)
+
+  :config
+  (consult-customize
+   consult-theme :preview-key '(:debounce 0.2 any)
+   consult-ripgrep consult-git-grep consult-grep
+   consult-bookmark consult-recent-file consult-xref
+   consult--source-bookmark consult--source-file-register
+   consult--source-recent-file consult--source-project-recent-file
+   ;; :preview-key "M-."
+   :preview-key '(:debounce 0.4 any))
+  (setq consult-narrow-key "<"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; avy 希望するところにジャンプする
-;;;
+;;; https://github.com/jamescherti/minimal-emacs.d?tab=readme-ov-file#efficient-jumps-for-enhanced-productivity
   (use-package avy
     :ensure t
     :config
     (global-set-key (kbd "C-:") 'avy-goto-char)
     (global-set-key (kbd "C-'") 'avy-goto-char-2)
-    (global-set-key (kbd "M-g f") 'avy-goto-line)
+ ;;   (global-set-key (kbd "M-g f") 'avy-goto-line)
     (global-set-key (kbd "M-g w") 'avy-goto-word-1)
-    (global-set-key (kbd "M-g e") 'avy-goto-word-0)
+ ;;   (global-set-key (kbd "M-g e") 'avy-goto-word-0)
     (avy-setup-default)
     nil)                 ; end of PROGN
 
@@ -73,7 +208,6 @@
 ;; Corfu は、ポイントの下または上に配置された現在の候補を含むコンパクトなポップアップを表示することで、バッファー内補完を強化します。候補者は上下に移動して選択できます。
 
 ;; Cape (Completion At Point Extensions) は、バッファー内補完の機能を拡張します。これは、ポイントでの補完関数を通じて追加のバックエンドを提供することにより、Corfu またはデフォルトの補完 UI と統合されます。
-
 ;; とを設定するには、以下を追加します。corfucape~/.emacs.d/post-init.el
 
 (use-package corfu
@@ -369,6 +503,14 @@
 
 ;; (setq prelude-python-mode-set-encoding-automatically t)
 
+;; lint python
+;; conda install conda-forge::ruff
+
+;; (use-package pyruff
+;;   :ensure t
+;;   :hook ((python-mode . pyruff-mode)
+;;         (python-mode . anaconda-mode)))
+
 ;;;;;;;;;;;;;;;;;;;; janet-mode ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -406,9 +548,9 @@
 ;; Org modeの設定
 ;;"C:\Users\mevius\iCloudDrive\my-journals\2024"
 ;; ファイルの場所
-(setq org-directory "C:\\Users\\mevius\\iCloudDrive\\my-journals\\2024")
+(setq org-directory "C:\\Users\\mevius\\iCloudDrive\\my-journals\\2025")
 ;;(setq org-directory "~/Dropbox/Org")
-(setq org-default-notes-file "my-note.org")
+(setq org-default-notes-file "my-journals.org")
 
 ;; Org-captureの設定
 ;; Org-captureを呼び出すキーシーケンス
@@ -416,7 +558,8 @@
 ;; Org-captureのテンプレート（メニュー）の設定
 (setq org-capture-templates
       '(("n" "Note" entry
-         (file+headline "C:\\Users\\mevius\\iCloudDrive\\my-journals\\2024\\my-note.org" "Notes")
+         (file+headline "C:\\Users\\mevius\\iCloudDrive\\my-journals\\2025\\my-journals.org" "Notes")
+        ;;          (file+headline "C:\\Users\\mevius\\iCloudDrive\\my-journals\\2024\\my-note.org" "Notes")
          "* %?\nEntered on %U\n %i\n %a")
         ))
 
@@ -487,188 +630,6 @@
 ;; M + x skk-get
 
 
-;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;
-;;;   Motion aids
-;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-
-
-;; (use-package avy
-;;   :ensure t
-;;   :demand t
-;;   :bind (("C-c j" . avy-goto-line)
-;;          ("M-j"   . avy-goto-char-timer)))
-
-
-;;; Extra config: Researcher
-;;; Usage: Append or require this file from init.el for research
-;;; helps. If you write papers in LaTeX and need to manage your
-;;; citations or keep track of notes, this set of packages is for you.
-;;;
-;;; Denote is a note taking package that facilitates a Zettelkasten
-;;; method. Denote works by enforcing a particular file naming
-;;; strategy. This makes it easy to link and tag notes.
-;;;
-;;; NOTE: the Citar package lives on the MELPA repository; you will
-;;; need to update the `package-archives' variable in init.el before
-;;; before loading this; see the comment in init.el under "Package
-;;; initialization".
-;;;
-;;; Highly recommended to enable this file with the UI enhancements in
-;;; `base.el', as Citar works best with the Vertico completing-read
-;;; interface. Also recommended is the `writer.el' extra config, which
-;;; adds some nice features for spell-checking etc.
-
-;;; Contents:
-;;;
-;;;  - Citation Management
-;;;  - Authoring
-;;;  - Note Taking: Denote
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;
-;;;   Critical variables
-;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;
-;;;   Citation Management
-;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; (use-package citar
-;;   :ensure t
-;;   :bind (("C-c b" . citar-insert-citation)
-;;          :map minibuffer-local-map
-;;          ("M-b" . citar-insert-preset))
-;;   :custom
-;;   ;; Allows you to customize what citar-open does
-;;   (citar-file-open-functions '(("html" . citar-file-open-external)
-;;                                ;; ("pdf" . citar-file-open-external)
-;;                                (t . find-file))))
-
-;; ;; Optional: if you have the embark package installed, enable the ability to act
-;; ;; on citations with Citar by invoking `embark-act'.
-;; (use-package citar-embark
-
-;;  :after citar embark
-;;  :diminish ""
-;;  :no-require
-;;  :config (citar-embark-mode))
-
-;; ;;; These variables must be set for Citar to work properly!
-;; (setq citar-bibliography '("~/refs.bib")) ; paths to your bibtex files
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;
-;;;   Authoring
-;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; TODO; package or configuration suggestions welcome
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;
-;;;   Note Taking: Denote
-;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Denote is a simple but powerful note-taking system that relies on a
-;; file-naming schema to make searching and finding notes easily. The
-;; Denote package provides commands that make the note taking scheme
-;; easy to follow. See the manual at:
-;;
-;;     https://protesilaos.com/emacs/denote
-;;
-;; (use-package denote
-;;   :ensure t
-;;   :config
-;;   (denote-rename-buffer-mode)
-;;   (require 'denote-journal-extras)
-;;   (add-hook 'find-file-hook #'denote-link-buttonize-buffer)
-;;   (add-hook 'dired-mode-hook #'denote-dired-mode-in-directories)
-;;   (add-hook 'context-menu-functions #'denote-context-menu)
-
-;;   (denote-rename-buffer-mode +1)
-;;   )
-
-;; denote
-;; org用のシンプルなメモ取りツールとして愛用しています。
-;; (use-package denote
-;;   :ensure t
-;;   :init
-;;   (with-eval-after-load 'org
-;;     (setq denote-directory org-directory))
-
-;;   :config
-;;   ;; (with-eval-after-load 'meow
-;;   ;;   (meow-leader-define-key
-;;   ;;    '("d" . denote-open-or-create)))
-;;   (require 'denote-journal-extras)
-;; ;;  (add-hook 'find-file-hook #'denote-link-buttonize-buffer)
-;;   ;; (add-hook 'dired-mode-hook #'denote-dired-mode-in-directories)
-;;   ;; (add-hook 'context-menu-functions #'denote-context-menu)
-
-;;   (denote-rename-buffer-mode +1))
-
-;;; These variables are needed for Denote
-;;(setq denote-directory (expand-file-name "c:/Users/mevius/Documents/my-notes/ "))
-
-
-;; ;; Integrate citar and Denote: take notes on bibliographic entries
-;; ;; through Denote
-;; (use-package citar-denote
-;;   :ensure t
-;;   :after (:any citar denote)
-;;   :custom
-;;   (citar-denote-file-type 'org)
-;;   (citar-denote-keyword "bib")
-;;   (citar-denote-signature nil)
-;;   (citar-denote-subdir "")
-;;   (citar-denote-template nil)
-;;   (citar-denote-title-format "title")
-;;   (citar-denote-title-format-andstr "and")
-;;   (citar-denote-title-format-authors 1)
-;;   (citar-denote-use-bib-keywords t)
-;;   :init
-;;   (citar-denote-mode))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;
-;; embark
-;;;   Authoring
-;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; vertico の候補等に様々なアクションを提供してくれます。
-
-;; (use-package embark
-;;   :bind (("C-." . embark-act)         ;; pick some comfortable binding
-;;          ("C-;" . embark-dwim)        ;; good alternative: M-.
-;;          ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
-;;   :init
-;; ;;  (setq prefix-help-command #'embark-prefix-help-command)
-
-;;   :config
-;;   ;; Hide the mode line of the Embark live/completions buffers
-;;   (add-to-list 'display-buffer-alist
-;;                '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
-;;                  nil
-;;                  (window-parameters (mode-line-format . none)))))
-;; ;;embark-consult
-;; ;;embark と consult を連動させます。
-
-;; (use-package embark-consult
-;;   :hook (embark-collect-mode . consult-preview-at-point-mode))
-
-
 
 ;;;;;;;;;;;;;;;;;;;;; yatex ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; https://zenn.dev/maswag/books/latex-on-emacs/viewer/yatex
@@ -701,7 +662,7 @@
     )
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; tomorrow-night-deepblue-theme.el (Emacs theme)
 ;;; https://github.com/jamescherti/tomorrow-night-deepblue-theme.el?tab=readme-ov-file#tomorrow-night-deepblue-themeel-emacs-theme
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -717,7 +678,6 @@
   (mapc #'disable-theme custom-enabled-themes)
   ;; Load the tomorrow-night-deepblue theme
   (load-theme 'tomorrow-night-deepblue t))
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -774,89 +734,6 @@
 ;;   (when (memq window-system '(mac ns))
 ;;     (exec-path-from-shell-initialize)))
 
-;; Enable vertico
-(use-package vertico
-  :init
-  (vertico-mode)
-
-  ;; Different scroll margin
-  ;; (setq vertico-scroll-margin 0)
-
-  ;; Show more candidates
-  ;; (setq vertico-count 20)
-
-  ;; Grow and shrink the Vertico minibuffer
-  ;; (setq vertico-resize t)
-
-  ;; Optionally enable cycling for `vertico-next' and `vertico-previous'.
-  ;; (setq vertico-cycle t)
-  )
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; https://github.com/bbatsov/emacs.d/blob/master/init.el
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-(use-package consult
-  :bind (
-         ;; C-x bindings (ctl-x-map)
-         ("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command
-         ("C-x b" . consult-buffer)                ;; orig. switch-to-buffer
-         ("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
-         ("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
-         ;; Custom M-# bindings for fast register access
-         ("M-#" . consult-register-load)
-         ("M-'" . consult-register-store)          ;; orig. abbrev-prefix-mark (unrelated)
-         ("C-M-#" . consult-register)
-         ;; Other custom bindings
-         ("M-y" . consult-yank-pop)                ;; orig. yank-pop
-         ("<help> a" . consult-apropos)            ;; orig. apropos-command
-         ;; M-g bindings (goto-map)
-         ("M-g e" . consult-compile-error)
-         ("M-g f" . consult-flycheck)
-         ("M-g g" . consult-goto-line)             ;; orig. goto-line
-         ("M-g M-g" . consult-goto-line)           ;; orig. goto-line
-         ("M-g o" . consult-outline)               ;; Alternative: consult-org-heading
-         ("M-g m" . consult-mark)
-         ("M-g k" . consult-global-mark)
-         ("M-g i" . consult-imenu)
-         ("M-g I" . consult-imenu-multi)
-         ("s-i" . consult-imenu)
-         ;; M-s bindings (search-map)
-         ("M-s f" . consult-find)
-         ("M-s F" . consult-locate)
-         ("M-s g" . consult-grep)
-         ("M-s G" . consult-git-grep)
-         ("M-s r" . consult-ripgrep)
-         ("M-s l" . consult-line)
-         ("M-s L" . consult-line-multi)
-         ("M-s m" . consult-multi-occur)
-         ("M-s k" . consult-keep-lines)
-         ("M-s u" . consult-focus-lines)))
-
-(use-package corfu
-  ;; Optional customizations
-  :custom
-  (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
-  (corfu-auto t)                 ;; Enable auto completion
-  ;; (corfu-separator ?\s)          ;; Orderless field separator
-  ;; (corfu-quit-at-boundary nil)   ;; Never quit at completion boundary
-  ;; (corfu-quit-no-match nil)      ;; Never quit, even if there is no match
-  ;; (corfu-preview-current nil)    ;; Disable current candidate preview
-  ;; (corfu-preselect 'prompt)      ;; Preselect the prompt
-  ;; (corfu-on-exact-match nil)     ;; Configure handling of exact matches
-  ;; (corfu-scroll-margin 5)        ;; Use scroll margin
-
-  ;; Enable Corfu only for certain modes.
-  ;; :hook ((prog-mode . corfu-mode)
-  ;;        (shell-mode . corfu-mode)
-  ;;        (eshell-mode . corfu-mode))
-
-  ;; Recommended: Enable Corfu globally.
-  ;; This is recommended since Dabbrev can be used globally (M-/).
-  ;; See also `corfu-excluded-modes'.
-  :init
-  (global-corfu-mode))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Programming modes
