@@ -1,0 +1,51 @@
+# Alacritty Configuration File for Windows 11 PowerShell
+# Theme: Tomorrow Night Deepblue (background only)
+# Save this file as alacritty.toml and place it in %APPDATA%\alacritty\
+
+[window]
+# Optionally set the startup shell to PowerShell
+#shell = { program = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" }
+
+[shell]
+program = "powershell.exe"
+args = ["-NoLogo", "-NoExit", "-Command", "Set-Location -Path $HOME"]
+
+[colors.primary]
+background = "#002451"   # Tomorrow Night Deepblue background color
+foreground = "#ffffff"   # White foreground for best contrast
+
+[colors.normal]
+black   = "#002451"
+red     = "#ff9da4"
+green   = "#d1f1a9"
+yellow  = "#ffeead"
+blue    = "#bbdaff"
+magenta = "#ebbbff"
+cyan    = "#99ffff"
+white   = "#ffffff"
+
+[colors.bright]
+black   = "#555555"
+red     = "#ff9da4"
+green   = "#d1f1a9"
+yellow  = "#ffeead"
+blue    = "#bbdaff"
+magenta = "#ebbbff"
+cyan    = "#99ffff"
+white   = "#ffffff"
+
+[font]
+# 利用可能な代表的なフォント例: "Cascadia Mono", "Hack", "Fira Code", "Consolas"
+normal = { family = "Cascadia Mono", style = "Regular" }
+
+bold = { family = "Cascadia Mono", style = "Bold" }
+italic = { family = "Cascadia Mono", style = "Italic" }
+bold_italic = { family = "Cascadia Mono", style = "Bold Italic" }
+
+size = 13.0    # おすすめは14～16（好みに応じて微調整可）
+
+# 必要に応じて文字間や行間も調整可
+offset = { x = 0, y = 0 }         # 文字左右の余白（デフォルト）
+glyph_offset = { x = 0, y = 0 }   # 文字上下の余白（デフォルト）
+builtin_box_drawing = true        # 罫線・特殊記号を美しく表示
+
