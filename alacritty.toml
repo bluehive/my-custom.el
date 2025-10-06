@@ -6,7 +6,7 @@
 # Optionally set the startup shell to PowerShell
 #shell = { program = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" }
 
-[shell]
+[terminal.shell]
 program = "powershell.exe"
 args = ["-NoLogo", "-NoExit", "-Command", "Set-Location -Path $HOME"]
 
@@ -48,4 +48,5 @@ size = 13.0    # おすすめは14～16（好みに応じて微調整可）
 offset = { x = 0, y = 0 }         # 文字左右の余白（デフォルト）
 glyph_offset = { x = 0, y = 0 }   # 文字上下の余白（デフォルト）
 builtin_box_drawing = true        # 罫線・特殊記号を美しく表示
+
 
