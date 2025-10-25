@@ -487,7 +487,8 @@
 ;; 追加パスはディレクトリのみ
 ;; (add-to-list 'python-shell-extra-pythonpaths "c:/tools/miniconda3/Lib/site-packages")
 ;; Python実行ファイルを指定
-(setq python-shell-interpreter "c:/tools/miniconda3/python.exe")
+;; (setq python-shell-interpreter "c:/tools/miniconda3/python.exe")
+(setq python-shell-interpreter "/usr/bin/python3")  ;; Cygwin64 = windows 
 ;; エンコーディング自動挿入
 (setq prelude-python-mode-set-encoding-automatically t)
 
