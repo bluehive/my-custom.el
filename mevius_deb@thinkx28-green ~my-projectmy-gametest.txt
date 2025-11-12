@@ -1,0 +1,36 @@
+;; -*- lexical-binding: t; -*-
+
+;; ====================
+;; パッケージリポジトリ設定（MELPA必須）
+;; ====================
+
+;; (require 'package)
+;; (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+;; (package-initialize)
+;;
+;; ;; use-package インストール
+;; (unless (package-installed-p 'use-package)
+;;   (package-refresh-contents)
+;;   (package-install 'use-package))
+;; (require 'use-package)
+;; (setq use-package-always-ensure t)
+
+;; ====================
+;; Ivy（counsel なしで補完強化）
+;; ====================
+
+(use-package ivy
+  :diminish
+  :bind (("C-s" . swiper)
+         ("C-x b" . ivy-switch-buffer)
+         ("C-c v" . ivy-push-view)
+         ("C-c V" . ivy-pop-view)
+         :map ivy-minibuffer-map
+         ("C-j" . ivy-next-line)
+         ("C-k" . ivy-previous-line)
+         ("C-l" . ivy-alt-done)
+         ("C-m" . ivy-done)
+         ("TAB" . ivy-partial-or-done)
+         ("C-." . embark-act))  ; Embark 連携
+
+-UUU:----F1  post-init.el   Top L2     (ELisp/d ivy ElDoc) ----------------------------------------------------------------------------------------------------
