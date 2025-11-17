@@ -1,19 +1,19 @@
 ;; -*- lexical-binding: t; -*-
 
-;; ====================
-;; パッケージリポジトリ設定（MELPA必須）
-;; ====================
+;; ~/.emacs.d/init.el
+;; Emacs 28+ 専用・use-package 版（2025年11月17日 最高構成）
 
-;; (require 'package)
-;; (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
-;; (package-initialize)
-;; 
-;; ;; use-package インストール
+;; ---------------------------------------------------------
+;; use-package の初期化（初回起動時は自動インストール）
+;; ---------------------------------------------------------
 ;; (unless (package-installed-p 'use-package)
 ;;   (package-refresh-contents)
 ;;   (package-install 'use-package))
+;; 
 ;; (require 'use-package)
-;; (setq use-package-always-ensure t)
+;; (setq use-package-always-ensure t)   ; :ensure t を省略可能に
+;; (setq use-package-verbose t)         ; デバッグ時に便利
+
 
 ;; ====================
 ;; The easysession Emacs package is a session manager for Emacs that can persist
@@ -30,8 +30,8 @@
              easysession-load-including-geometry)
 
   :custom
-  (easysession-mode-line-misc-info t)  ; Display the session in the modeline
-  (easysession-save-interval (* 10 60))  ; Save every 10 minutes
+  (easysession-mode-line-misc-info t)   ; Display the session in the modeline
+  (easysession-save-interval (* 10 60)) ; Save every 10 minutes
 
   :init
   ;; Key mappings:
@@ -47,58 +47,242 @@
   (add-hook 'emacs-startup-hook #'easysession-load-including-geometry 102)
   (add-hook 'emacs-startup-hook #'easysession-save-mode 103))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ====================
+;; C モードの基本スタイル設定（組み込み）
+;; ====================
+
+(use-package cc-mode
+  ;; :ensure t
+  :hook (c-mode-common . my/c-mode-setup)
+  :config
+  (defun my/c-mode-setup ()
+    "C モードのデフォルトスタイルを設定。"
+    (c-set-style "linux")  ;; スタイル: gnu, linux, bsd, k&r などから選択
+    (setq c-basic-offset 4)  ;; インデント幅（4スペース）
+    (setq indent-tabs-mode nil)  ;; タブ禁止、スペース使用
+    (setq c-auto-newline t)  ;; 自動改行
+  ;;  (c-add-hook)  ;; スタイル変更後の再インデント
+    )
+  )
 
 ;; ====================
-;; Ivy（counsel なしで補完強化）
+;; format-all – 自動フォーマット（clang-format など使用）
 ;; ====================
+
+(use-package format-all
+  :bind (:map prog-mode-map
+              ("C-c f" . format-all-buffer))  ;; バッファ全体フォーマット
+  :hook ((c-mode . format-all-mode)  ;; C モードで自動有効
+         (prog-mode . format-all-mode))  ;; 保存時自動フォーマット（オプション）
+  :config
+  ;; C 用のフォーマッターを指定（デフォルト: clang-format）
+  (setq-default format-all-formatters
+                '(("C" (clang-format))))  ;; astyle に変えたい場合: (astyle "--mode=c")
+
+  ;; 保存時に自動フォーマット（有効化したい場合）
+  ;; (add-hook 'before-save-hook 'format-all-buffer nil t)
+  )
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; theme 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(mapc #'disable-theme custom-enabled-themes)  ; Disable all active themes
+;; (load-theme 'deeper-blue t)  ; Load the built-in theme
+
+(use-package tomorrow-night-deepblue-theme
+  :ensure t
+  :config
+  ;; Disable all themes and load the Tomorrow Night Deep Blue theme
+  (mapc #'disable-theme custom-enabled-themes)
+  ;; Load the tomorrow-night-deepblue theme
+  (load-theme 'tomorrow-night-deepblue t))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(use-package paredit
+  :ensure t
+  :hook ((emacs-lisp-mode . paredit-mode)
+         (lisp-mode . paredit-mode)          ;; Common Lisp, Schemeなどlisp系全般
+         (scheme-mode . paredit-mode)        ;; Scheme専用メジャーモード
+         (c-mode . paredit-mode)))            ;; C言語でも使いたい場合（普通はあまり使わないが要望に応じて）
+
+
+(use-package easy-kill
+  :ensure t
+  :config
+  (global-set-key [remap kill-ring-save] 'easy-kill))
+
+
+
+;; Helpful is an alternative to the built-in Emacs help that provides much more
+;; contextual information.
+(use-package helpful
+  :ensure t
+  :commands (helpful-callable
+             helpful-variable
+             helpful-key
+             helpful-command
+             helpful-at-point
+             helpful-function)
+  :bind
+  ([remap describe-command] . helpful-command)
+  ([remap describe-function] . helpful-callable)
+  ([remap describe-key] . helpful-key)
+  ([remap describe-symbol] . helpful-symbol)
+  ([remap describe-variable] . helpful-variable)
+  :custom
+  (helpful-max-buffers 7))
+
+;; ---------------------------------------------------------
+;; debug
+;; ---------------------------------------------------------
+;;(message "init.el loaded ...  debug !! ")
+;; ---------------------------------------------------------
+;; 1. Ivy + Counsel + Posframe（中央表示 + ESC連打即閉じ）
+;; ---------------------------------------------------------
 
 (use-package ivy
   :diminish
-  :bind (("C-s" . swiper)
-         ("C-x b" . ivy-switch-buffer)
-         ("C-c v" . ivy-push-view)
-         ("C-c V" . ivy-pop-view)
+  :bind (("M-x"       . counsel-M-x)
+         ("C-x C-f"   . counsel-find-file)
+         ("C-x b"     . ivy-switch-buffer)
+         ("C-c k"     . counsel-ag)
+         ("C-s"       . swiper)
          :map ivy-minibuffer-map
-         ("C-j" . ivy-next-line)
-         ("C-k" . ivy-previous-line)
-         ("C-l" . ivy-alt-done)
-         ("C-m" . ivy-done)
-         ("TAB" . ivy-partial-or-done)
-         ("C-." . embark-act))  ; Embark 連携
-
+         ("<escape>" . minibuffer-keyboard-quit))
   :init
   (ivy-mode 1)
-
   :config
-  (setq ivy-use-virtual-buffers t)
-  (setq ivy-wrap t)
-  (setq ivy-count-format "(%d/%d) ")
-  (setq ivy-initial-inputs-alist nil)
-  (setq ivy-height 15)
-  )
+  (setq ivy-use-virtual-buffers t
+        ivy-count-format "(%d/%d) "
+        ivy-display-style 'fancy
+        ivy-initial-inputs-alist nil
+        ivy-re-builders-alist '((t . ivy--regex-plus)))
 
-;; ====================
-;; Swiper（検索強化）
-;; ====================
+  ;; ──────────────────────────────
+  ;; ESC連打で絶対に閉じる神設定（エラーゼロ）
+  ;; ──────────────────────────────
+  (defun my/force-quit-minibuffer ()
+    "ミニバッファとivy-posframeを強制的に全部消す"
+    (interactive)
+    (when (active-minibuffer-window)
+      (minibuffer-keyboard-quit))
+    (when (and (fboundp 'ivy-posframe-cleanup)
+               ivy-posframe-mode)
+      (ivy-posframe-cleanup))
+    (abort-recursive-edit))
 
-(use-package swiper
+  (defvar my/esc-timer nil)
+  (defvar my/esc-count 0)
+
+  (defun my/esc-handler ()
+    (interactive)
+    (setq my/esc-count (1+ my/esc-count))
+    (when (timerp my/esc-timer) (cancel-timer my/esc-timer))
+    (setq my/esc-timer
+          (run-at-time "0.2 sec" nil
+                       (lambda ()
+                         (when (>= my/esc-count 2)
+                           (my/force-quit-minibuffer))
+                         (setq my/esc-count 0)))))
+
+  (global-set-key (kbd "<escape>") 'my/esc-handler))
+
+
+(use-package swiper)
+
+(use-package ivy-rich
   :after ivy
-  :bind (("C-s" . swiper-isearch))
-  )
+  :config
+  (ivy-rich-mode 1)
+  (setq ivy-rich-path-style 'abbrev))
 
-;; ====================
-;; Ivy-rich（見た目強化、オプション）
-;; ====================
+(use-package prescient
+  :config (prescient-persist-mode 1))
 
-;; (use-package ivy-rich
-;;   :after ivy
-;;   :init (ivy-rich-mode 1)
-;;   :config
-;;   (setq ivy-rich-path-style 'abbrev)
-;;   (when (display-graphic-p)
-;;     (use-package all-the-icons-ivy-rich
-;;       :init (all-the-icons-ivy-rich-mode 1)))
-;;   )
+(use-package ivy-prescient
+  :after ivy prescient
+  :config (ivy-prescient-mode 1))
+
+(use-package posframe)   ; ivy-posframe の依存
+
+(use-package ivy-posframe
+  :after ivy
+  :custom
+  (ivy-posframe-display-functions-alist '((t . ivy-posframe-display-at-frame-center)))
+  (ivy-posframe-width 80)
+  (ivy-posframe-height 15)
+  (ivy-posframe-border-width 2)
+  (ivy-posframe-parameters '((left-fringe . 8) (right-fringe . 8)))
+  ;; お好きな日本語フォントに変更（HackGen / JetBrains Mono / Ricty 等）
+;;  (ivy-posframe-font "HackGen Console NF-13")
+  :config
+  (ivy-posframe-mode 1))
+
+
+;; ---------------------------------------------------------
+;; 2. LSP（C/C++ 用）+ lsp-ivy
+;; ---------------------------------------------------------
+(use-package lsp-mode
+  :hook ((c-mode c++-mode) . lsp)
+  :commands lsp
+  :custom
+  (lsp-prefer-flymake nil)
+  (lsp-enable-symbol-highlighting t)
+  (lsp-lens-enable t))
+
+(use-package lsp-ui
+  :after lsp-mode
+  :custom
+  (lsp-ui-sideline-enable t)
+  (lsp-ui-doc-enable t)
+  (lsp-ui-peek-enable t))
+
+(use-package lsp-ivy
+  :after lsp-mode
+  :bind ("C-c ." . lsp-ivy-workspace-symbol))
+
+;; (use-package ccls
+;;   :after lsp-mode
+;;   :custom
+;;   (ccls-executable "ccls"))   ; PATHにcclsが入っている前提
+
+;; ccls 関連は全部削除して、以下に置き換える
+(use-package lsp-mode
+  :hook ((c-mode c++-mode) . lsp)
+  :commands lsp
+  :custom
+  (lsp-prefer-flymake nil)
+  (lsp-enable-symbol-highlighting t)
+  (lsp-lens-enable t)
+  (lsp-clients-clangd-executable "clangd"))   ; ← これ追加
+
+(use-package lsp-ui
+  :after lsp-mode
+  :custom
+  (lsp-ui-sideline-enable t)
+  (lsp-ui-doc-enable t)
+  (lsp-ui-peek-enable t))
+
+
+;; ---------------------------------------------------------
+;; 3. Flycheck（リアルタイムエラー表示）
+;; ---------------------------------------------------------
+(use-package flycheck
+  :hook ((c-mode c++-mode) . flycheck-mode))
+
+;; ---------------------------------------------------------
+;; 4. LSP 便利キーバインド（lsp-mode 内で有効）
+;; ---------------------------------------------------------
+;; (use-package lsp-mode
+;;   :bind (:map lsp-mode-map
+;;               ("M-."     . lsp-find-definition)
+;;               ("M-?"     . lsp-find-references)
+;;               ("C-c C-f" . lsp-format-buffer)
+;;               ("C-c C-r" . lsp-rename)
+;;               ("C-c C-d" . lsp-describe-thing-at-point)))
 
 ;; ====================
 ;; Embark（Ivy + Org 連携、src-block 挿入対応）
@@ -107,9 +291,9 @@
 (use-package embark
   :ensure t
   :bind
-  (("C-." . embark-act)         ; 候補にアクション
-   ("C-;" . embark-dwim)        ; 賢く実行
-   ("C-h B" . embark-bindings)) ; キー一覧
+  (("C-." . embark-act)                 ; 候補にアクション
+   ("C-;" . embark-dwim)                ; 賢く実行
+   ("C-h B" . embark-bindings))         ; キー一覧
 
   :init
   (setq prefix-help-command #'embark-prefix-help-command)
@@ -152,33 +336,6 @@
   (define-key embark-general-map (kbd "S") #'my/org-insert-src-block)
   )
 
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; theme 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(mapc #'disable-theme custom-enabled-themes)  ; Disable all active themes
-;; (load-theme 'deeper-blue t)  ; Load the built-in theme
-
-(use-package tomorrow-night-deepblue-theme
-  :ensure t
-  :config
-  ;; Disable all themes and load the Tomorrow Night Deep Blue theme
-  (mapc #'disable-theme custom-enabled-themes)
-  ;; Load the tomorrow-night-deepblue theme
-  (load-theme 'tomorrow-night-deepblue t))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; (use-package avy
-;;   :ensure t
-;;   :commands (avy-goto-char
-;;              avy-goto-char-2
-;;              avy-next)
-;;   :init
-;;   (global-set-key (kbd "C-'") 'avy-goto-char-2))
-
-
 ;; ====================
 ;; avy – 高速ジャンプ
 ;; ====================
@@ -219,74 +376,8 @@
   (setq avy-dispatch-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l ?q ?w ?e ?r ?t ?y ?u ?i ?o ?p))
   )
 
+;; ---------------------------------------------------------
+;; 完了！
+;; ---------------------------------------------------------
+(message "init.el loaded successfully! Enjoy Ivy-posframe + C LSP!  last times")
 
-;; Helpful is an alternative to the built-in Emacs help that provides much more
-;; contextual information.
-(use-package helpful
-  :ensure t
-  :commands (helpful-callable
-             helpful-variable
-             helpful-key
-             helpful-command
-             helpful-at-point
-             helpful-function)
-  :bind
-  ([remap describe-command] . helpful-command)
-  ([remap describe-function] . helpful-callable)
-  ([remap describe-key] . helpful-key)
-  ([remap describe-symbol] . helpful-symbol)
-  ([remap describe-variable] . helpful-variable)
-  :custom
-  (helpful-max-buffers 7))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(use-package paredit
-  :ensure t
-  :hook ((emacs-lisp-mode . paredit-mode)
-         (lisp-mode . paredit-mode)          ;; Common Lisp, Schemeなどlisp系全般
-         (scheme-mode . paredit-mode)        ;; Scheme専用メジャーモード
-         (c-mode . paredit-mode)))            ;; C言語でも使いたい場合（普通はあまり使わないが要望に応じて）
-
-
-
-(use-package easy-kill
-  :ensure t
-  :config
-  (global-set-key [remap kill-ring-save] 'easy-kill))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; ====================
-;; C モードの基本スタイル設定（組み込み）
-;; ====================
-
-(use-package cc-mode
-  ;; :ensure t
-  :hook (c-mode-common . my/c-mode-setup)
-  :config
-  (defun my/c-mode-setup ()
-    "C モードのデフォルトスタイルを設定。"
-    (c-set-style "linux")  ;; スタイル: gnu, linux, bsd, k&r などから選択
-    (setq c-basic-offset 4)  ;; インデント幅（4スペース）
-    (setq indent-tabs-mode nil)  ;; タブ禁止、スペース使用
-    (setq c-auto-newline t)  ;; 自動改行
-    (c-add-hook)  ;; スタイル変更後の再インデント
-    )
-  )
-
-;; ====================
-;; format-all – 自動フォーマット（clang-format など使用）
-;; ====================
-
-(use-package format-all
-  :bind (:map prog-mode-map
-              ("C-c f" . format-all-buffer))  ;; バッファ全体フォーマット
-  :hook ((c-mode . format-all-mode)  ;; C モードで自動有効
-         (prog-mode . format-all-mode))  ;; 保存時自動フォーマット（オプション）
-  :config
-  ;; C 用のフォーマッターを指定（デフォルト: clang-format）
-  (setq-default format-all-formatters
-                '(("C" (clang-format))))  ;; astyle に変えたい場合: (astyle "--mode=c")
-
-  ;; 保存時に自動フォーマット（有効化したい場合）
-  ;; (add-hook 'before-save-hook 'format-all-buffer nil t)
-  )
