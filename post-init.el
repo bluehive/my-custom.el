@@ -194,9 +194,11 @@
     (interactive)
     (when (active-minibuffer-window)
       (minibuffer-keyboard-quit))
-    (when (and (fboundp 'ivy-posframe-cleanup)
-               ivy-posframe-mode)
-      (ivy-posframe-cleanup))
+
+    ;; (when (and (fboundp 'ivy-posframe-cleanup)
+    ;;            ivy-posframe-mode)
+    ;;   (ivy-posframe-cleanup))
+    
     (abort-recursive-edit))
 
   (defvar my/esc-timer nil)
@@ -231,78 +233,68 @@
   :after ivy prescient
   :config (ivy-prescient-mode 1))
 
-(use-package posframe)   ; ivy-posframe の依存
 
-(use-package ivy-posframe
-  :after ivy
-  :custom
-  (ivy-posframe-display-functions-alist '((t . ivy-posframe-display-at-frame-center)))
-  (ivy-posframe-width 80)
-  (ivy-posframe-height 15)
-  (ivy-posframe-border-width 2)
-  (ivy-posframe-parameters '((left-fringe . 8) (right-fringe . 8)))
-  ;; お好きな日本語フォントに変更（HackGen / JetBrains Mono / Ricty 等）
-;;  (ivy-posframe-font "HackGen Console NF-13")
-  :config
-  (ivy-posframe-mode 1))
+;;(use-package posframe)   ; ivy-posframe の依存
+
+;; (use-package ivy-posframe
+;;   :after ivy
+;;   :custom
+;;   (ivy-posframe-display-functions-alist '((t . ivy-posframe-display-at-frame-center)))
+;;   (ivy-posframe-width 80)
+;;   (ivy-posframe-height 15)
+;;   (ivy-posframe-border-width 2)
+;;   (ivy-posframe-parameters '((left-fringe . 8) (right-fringe . 8)))
+;;   ;; お好きな日本語フォントに変更（HackGen / JetBrains Mono / Ricty 等）
+;; ;;  (ivy-posframe-font "HackGen Console NF-13")
+;;   :config
+;;   (ivy-posframe-mode 1))
 
 
 ;; ====================
 ;; Embark（Ivy + Org 連携、src-block 挿入対応）
 ;; ====================
-
 (use-package embark
   :ensure t
   :bind
-  (("C-." . embark-act)                 ; 候補にアクション
-   ("C-;" . embark-dwim)                ; 賢く実行
-   ("C-h B" . embark-bindings))         ; キー一覧
-
+  (("C-." . embark-act)
+   ("C-;" . embark-dwim)
+   ("C-h B" . embark-bindings))
   :init
   (setq prefix-help-command #'embark-prefix-help-command)
-
   :config
-  ;; Ivy ミニバッファで C-. → Embark
   (define-key ivy-minibuffer-map (kbd "C-.") #'embark-act)
 
-  ;; ファイル・バッファのデフォルトアクション
   (define-key embark-file-map (kbd "o") #'find-file-other-window)
   (define-key embark-buffer-map (kbd "k") #'kill-buffer)
 
-  ;; --- Org-mode: src-block 挿入アクション ---
-  (defun my/org-insert-src-block (lang)
-    "Org-mode で指定言語の src-block を挿入。"
-    (interactive "sLanguage: ")
-    (let ((template (format "#+BEGIN_SRC %s\n\n#+END_SRC" lang)))
-      (insert template)
-      (forward-line -1)
-      (end-of-line)))
-
-  ;; よく使う言語（見出し上でのみ有効）
-  (dolist (pair '(("el" . "emacs-lisp")
-                  ("py" . "python")
-                  ("sh" . "shell")
-                  ("js" . "javascript")
-                  ("rb" . "ruby")
-                  ("rs" . "rust")
-                  ("go" . "go")
-                  ("hs" . "haskell")))
-    (let ((key (car pair))
-          (lang (cdr pair)))
-      (define-key embark-org-heading-map (kbd key)
-        `(lambda () (interactive) (my/org-insert-src-block ,lang)))))
-
-  ;; 任意の言語を入力（見出し上）
-  (define-key embark-org-heading-map (kbd "s") #'my/org-insert-src-block)
-
-  ;; どこでも使える汎用アクション（S 大文字）
-  (define-key embark-general-map (kbd "S") #'my/org-insert-src-block)
+  ;; 独自キーマップを作成
+  ;; (defvar embark-org-heading-map (make-sparse-keymap)
+  ;;   "Keymap for embark actions on Org headings.")
+  ;; (defvar embark-general-map (make-sparse-keymap)
+  ;;   "General embark action keymap.")
+  ;; 
+  ;; (defun my/org-insert-src-block (lang)
+  ;;   "Org-mode で指定言語の src-block を挿入。"
+  ;;   (interactive "sLanguage: ")
+  ;;   (let ((template (format "#+BEGIN_SRC %s\n\n#+END_SRC" lang)))
+  ;;     (insert template)
+  ;;     (forward-line -1)
+  ;;     (end-of-line)))
+  ;; 
+  ;; ;; よく使う言語でキーバインド登録
+  ;; (dolist (pair '(("el" . "emacs-lisp")
+  ;;                 ("py" . "python")
+  ;;                 ("sh" . "shell")))
+  ;;   (let ((key (car pair))
+  ;;         (lang (cdr pair)))
+  ;;     (define-key embark-org-heading-map (kbd key)
+  ;;       `(lambda () (interactive) (my/org-insert-src-block ,lang)))))
+  ;; 
+  ;; ;; 任意の言語を入力
+  ;; (define-key embark-org-heading-map (kbd "s") #'my/org-insert-src-block)
+  ;; ;; どこでも使える汎用アクション(S)
+  ;; (define-key embark-general-map (kbd "S") #'my/org-insert-src-block)
   )
-
-;; ---------------------------------------------------------
-;; 完了！
-;; ---------------------------------------------------------
-(message "init.el loaded successfully! Enjoy Ivy-posframe + C LSP!   two times")
 
 
 ;; ====================
@@ -316,8 +308,8 @@
    ("C-'" . avy-goto-char)           ; 1文字でジャンプ（候補多いとき便利）
    ("M-g M-g" . avy-goto-line)       ; 行ジャンプ（標準の goto-line を置き換え）
    ("M-g g" . avy-goto-line)         ; 同上
-   ("C-c j" . avy-goto-word-1)       ; 単語の頭文字でジャンプ
-   ("C-c C-j" . avy-goto-subword-1)  ; サブワード（camelCase対応）
+   ;; ("C-c j" . avy-goto-word-1)       ; 単語の頭文字でジャンプ
+   ;; ("C-c C-j" . avy-goto-subword-1)  ; サブワード（camelCase対応）
    ("s-j" . avy-goto-char-timer))    ; Super + j でグローバルジャンプ（GUI/macOS）
 
   :init
@@ -347,6 +339,12 @@
 
 ;; -----------------------------------------------------------------
 
+;; ---------------------------------------------------------
+;; --debug-init
+;; ---------------------------------------------------------
+(message "init.el loaded , avy jump ")
+
+
 ;; ==============================================================
 ;; DDSKK（超快適日本語入力）– Emacs 28 完全対応・use-package 版
 ;; ==============================================================
@@ -364,11 +362,11 @@
                  (expand-file-name "~/.skk/SKK-JISYO.L")))
   
   ;; 見た目・挙動（2025年現在これが最強）
-  (skk-use-azik t)                     ; AZIK（超打ちやすい拡張ローマ字）
-  (skk-azik-keyboard-type 'pc106)      ; 日本語109キーボード用
+  (skk-use-azik t)                     ; AZIK（超打ちやすい拡張ローマ字）;;
+;;  (skk-azik-keyboard-type 'pc106)      ; 日本語109キーボード用
 ;;  (skk-sticky-key ";")                 ; ; で確定＋次候補
-  (skk-show-annotation t)              ; 注釈表示（単語の意味が出る）
-  (skk-annotation-show-as-message nil) ; 注釈は別ウィンドウにしない
+;;  (skk-show-annotation t)              ; 注釈表示（単語の意味が出る）
+;;  (skk-annotation-show-as-message nil) ; 注釈は別ウィンドウにしない
   (skk-show-tooltip t)                 ; ツールチップで候補表示（美しくて見やすい）
   (skk-tooltip-parameters '((background-color . "#333333")
                             (foreground-color . "#ffffff")
@@ -542,10 +540,10 @@
   
   :bind
   ;; グローバルキーバインド（いつでも呼び出し）
-  ("C-c n n" . org-journal-new-entry)       ; 新規エントリ作成
+  ("C-c j n" . org-journal-new-entry)       ; 新規エントリ作成
 ;;  ("C-c n o" . org-journal-open-current-file) ; 今日のファイルを開く
-  ("C-c n s" . org-journal-search)          ; ジャーナル検索
-  ("C-c n c" . org-journal-carryover-items) ; 手動キャリーオーバー
+  ("C-c j s" . org-journal-search)          ; ジャーナル検索
+  ("C-c j c" . org-journal-carryover-items) ; 手動キャリーオーバー
 
   :config
   ;; 追加カスタマイズ（Calendar 統合など）
@@ -584,59 +582,59 @@
 ;; ------------------------------
 ;; 1. LSP 基本設定（clangd を使うのが2025年最強）
 ;; ------------------------------
-(use-package lsp-mode
-  :ensure t
-  :hook ((c-mode . lsp)
-         (c++-mode . lsp))
-  :commands lsp
-  :custom
-  ;; clangd を使う（ccls より速い・正確・メンテナンスされてる）
-  (lsp-clients-clangd-executable "clangd")
-  (lsp-enable-which-key-integration t)
-  (lsp-enable-symbol-highlighting t)
-  (lsp-lens-enable t)                   ; コード上に関数名・参照数表示
-  (lsp-headerline-breadcrumb-enable t)  ; パンくずリスト（IDE並み）
-  (lsp-modeline-code-actions-enable t)
-  (lsp-completion-provider :capf)       ; Ivy/Company と完璧連携
-  (lsp-idle-delay 0.3)
-  (lsp-log-io nil)                      ; デバッグ時以外はログオフ
-  :config
-  ;; C言語特化設定
-  (setq lsp-clangd-binary-path "clangd")
-  (add-to-list 'lsp-language-id-configuration '(c-mode . "c"))
-  (lsp-register-custom-settings
-   '(("clangd.arguments" "--header-insertion=never") ; 自動インクルード防止
-     ("clangd.arguments" "--completion-style=detailed")
-     ("clangd.arguments" "--function-arg-placeholders"))))
-
-;; ------------------------------
-;; 2. LSP UI（見た目を VSCode 並みに美しく）
-;; ------------------------------
-(use-package lsp-ui
-  :ensure t
-  :after lsp-mode
-  :custom
-  (lsp-ui-doc-enable t)                  ; マウスオーバーでドキュメント
-  (lsp-ui-doc-position 'at-point)
-  (lsp-ui-doc-delay 0.5)
-  (lsp-ui-sideline-enable t)
-  (lsp-ui-sideline-show-hover t)
-  (lsp-ui-sideline-show-diagnostics t)
-  (lsp-ui-peek-enable t)                 ; M-? で参照ジャンプ
-  (lsp-ui-peek-always-show t)
-  :bind (:map lsp-ui-mode-map
-         ("C-c l d" . lsp-ui-doc-show)
-         ("C-c l p" . lsp-ui-peek-find-definitions)
-         ("C-c l r" . lsp-ui-peek-find-references)))
+;; (use-package lsp-mode
+;;   :ensure t
+;;   :hook ((c-mode . lsp)
+;;          (c++-mode . lsp))
+;;   :commands lsp
+;;   :custom
+;;   ;; clangd を使う（ccls より速い・正確・メンテナンスされてる）
+;;   (lsp-clients-clangd-executable "clangd")
+;;   (lsp-enable-which-key-integration t)
+;;   (lsp-enable-symbol-highlighting t)
+;;   (lsp-lens-enable t)                   ; コード上に関数名・参照数表示
+;;   (lsp-headerline-breadcrumb-enable t)  ; パンくずリスト（IDE並み）
+;;   (lsp-modeline-code-actions-enable t)
+;;   (lsp-completion-provider :capf)       ; Ivy/Company と完璧連携
+;;   (lsp-idle-delay 0.3)
+;;   (lsp-log-io nil)                      ; デバッグ時以外はログオフ
+;;   :config
+;;   ;; C言語特化設定
+;;   (setq lsp-clangd-binary-path "clangd")
+;;   (add-to-list 'lsp-language-id-configuration '(c-mode . "c"))
+;;   (lsp-register-custom-settings
+;;    '(("clangd.arguments" "--header-insertion=never") ; 自動インクルード防止
+;;      ("clangd.arguments" "--completion-style=detailed")
+;;      ("clangd.arguments" "--function-arg-placeholders"))))
+;; 
+;; ;; ------------------------------
+;; ;; 2. LSP UI（見た目を VSCode 並みに美しく）
+;; ;; ------------------------------
+;; (use-package lsp-ui
+;;   :ensure t
+;;   :after lsp-mode
+;;   :custom
+;;   (lsp-ui-doc-enable t)                  ; マウスオーバーでドキュメント
+;;   (lsp-ui-doc-position 'at-point)
+;;   (lsp-ui-doc-delay 0.5)
+;;   (lsp-ui-sideline-enable t)
+;;   (lsp-ui-sideline-show-hover t)
+;;   (lsp-ui-sideline-show-diagnostics t)
+;;   (lsp-ui-peek-enable t)                 ; M-? で参照ジャンプ
+;;   (lsp-ui-peek-always-show t)
+;;   :bind (:map lsp-ui-mode-map
+;;          ("C-c l d" . lsp-ui-doc-show)
+;;          ("C-c l p" . lsp-ui-peek-find-definitions)
+;;          ("C-c l r" . lsp-ui-peek-find-references)))
 
 ;; ------------------------------
 ;; 3. Ivy ユーザー向け LSP 補完・検索（最強連携）
 ;; ------------------------------
-(use-package lsp-ivy
-  :ensure t
-  :after lsp-mode
-  :bind (:map lsp-mode-map
-         ("C-c C-." . lsp-ivy-workspace-symbol)))  ; C-c C-. で全シンボル検索（Ivy）
+;; (use-package lsp-ivy
+;;   :ensure t
+;;   :after lsp-mode
+;;   :bind (:map lsp-mode-map
+;;          ("C-c C-." . lsp-ivy-workspace-symbol)))  ; C-c C-. で全シンボル検索（Ivy）
 
          
 ;; ------------------------------
@@ -717,8 +715,7 @@
   (c-basic-offset 4)
   (indent-tabs-mode nil)
   :hook ((c-mode c++-mode) . (lambda ()
-                               (electric-pair-local-mode 1)
-                               (lsp))))   ; ← ここでLSP自動起動
+                               (electric-pair-local-mode 1))))  ;; ← LSPは呼ばれません
 
 (use-package flycheck
   :ensure t
@@ -744,10 +741,8 @@
 (with-eval-after-load 'dap-mode
   (message "C言語デバッグ環境 完全構築完了！ F9でブレークポイント → F5でデバッグ開始！"))
 
-
-
 ;; ---------------------------------------------------------
 ;; 完了！
 ;; ---------------------------------------------------------
-(message "init.el loaded successfully! Enjoy Ivy-posframe + C LSP!  last times")
+(message "init.el loaded successfully! ")
 
