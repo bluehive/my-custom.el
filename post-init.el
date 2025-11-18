@@ -47,25 +47,6 @@
   (add-hook 'emacs-startup-hook #'easysession-load-including-geometry 102)
   (add-hook 'emacs-startup-hook #'easysession-save-mode 103))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; ====================
-;; C モードの基本スタイル設定（組み込み）
-;; ====================
-
-(use-package cc-mode
-  ;; :ensure t
-  :hook (c-mode-common . my/c-mode-setup)
-  :config
-  (defun my/c-mode-setup ()
-    "C モードのデフォルトスタイルを設定。"
-    (c-set-style "linux")  ;; スタイル: gnu, linux, bsd, k&r などから選択
-    (setq c-basic-offset 4)  ;; インデント幅（4スペース）
-    (setq indent-tabs-mode nil)  ;; タブ禁止、スペース使用
-    (setq c-auto-newline t)  ;; 自動改行
-  ;;  (c-add-hook)  ;; スタイル変更後の再インデント
-    )
-  )
-
 ;; ====================
 ;; format-all – 自動フォーマット（clang-format など使用）
 ;; ====================
@@ -83,6 +64,33 @@
   ;; 保存時に自動フォーマット（有効化したい場合）
   ;; (add-hook 'before-save-hook 'format-all-buffer nil t)
   )
+
+;; ------------------------------
+;; 5. 既存の最強設定（ace-window, projectile, lsp-uiなどはそのまま）
+;; ------------------------------
+;; ← 前のコードの ace-window / projectile / lsp-ui / flycheck はそのまま使います
+
+(use-package ace-window
+  :ensure t
+  :bind (("C-x o" . ace-window) ("M-o" . ace-window))
+  :custom (aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
+  :config (ace-window-display-mode 1))
+
+(use-package projectile
+  :ensure t
+  :diminish projectile-mode
+  :bind-keymap ("C-c p" . projectile-command-map)
+  :init (projectile-mode 1)
+  :custom
+  (projectile-project-root-files '("Makefile" "CMakeLists.txt" ".git"))
+  (projectile-project-search-path '("~/src/" "~/my-project/" "~/work/"))
+  (projectile-indexing-method 'alien)
+  (projectile-enable-caching t))
+
+(use-package counsel-projectile
+  :ensure t
+  :after (counsel projectile)
+  :config (counsel-projectile-mode 1))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -141,6 +149,12 @@
 
 (savehist-mode 1)
 (setq savehist-additional-variables '(kill-ring))
+
+;; 以前に開いていた位置を保存/復元する
+;;save-place-mode を有効にしていると以前に開いたことのあるファイルの、開いていた場所を覚えておいてくれる。
+
+(save-place-mode 1)
+
 
 
 ;; ---------------------------------------------------------
@@ -231,74 +245,6 @@
 ;;  (ivy-posframe-font "HackGen Console NF-13")
   :config
   (ivy-posframe-mode 1))
-
-
-;; ---------------------------------------------------------
-;; 2. LSP（C/C++ 用）+ lsp-ivy
-;; ---------------------------------------------------------
-(use-package lsp-mode
-  :hook ((c-mode c++-mode) . lsp)
-  :commands lsp
-  :custom
-  (lsp-prefer-flymake nil)
-  (lsp-enable-symbol-highlighting t)
-  (lsp-lens-enable t))
-
-(use-package lsp-ui
-  :after lsp-mode
-  :custom
-  (lsp-ui-sideline-enable t)
-  (lsp-ui-doc-enable t)
-  (lsp-ui-peek-enable t))
-
-(use-package lsp-ivy
-  :after lsp-mode
-  :bind ("C-c ." . lsp-ivy-workspace-symbol))
-
-;; (use-package ccls
-;;   :after lsp-mode
-;;   :custom
-;;   (ccls-executable "ccls"))   ; PATHにcclsが入っている前提
-
-;; ccls 関連は全部削除して、以下に置き換える
-(use-package lsp-mode
-  :hook ((c-mode c++-mode) . lsp)
-  :commands lsp
-  :custom
-  (lsp-prefer-flymake nil)
-  (lsp-enable-symbol-highlighting t)
-  (lsp-lens-enable t)
-  (lsp-clients-clangd-executable "clangd"))   ; ← これ追加
-
-(use-package lsp-ui
-  :after lsp-mode
-  :custom
-  (lsp-ui-sideline-enable t)
-  (lsp-ui-doc-enable t)
-  (lsp-ui-peek-enable t))
-
-
-;; ---------------------------------------------------------
-;; 3. Flycheck（リアルタイムエラー表示）
-;; ---------------------------------------------------------
-(use-package flycheck
-  :hook ((c-mode c++-mode) . flycheck-mode))
-
-;; ---------------------------------------------------------
-;; 4. LSP 便利キーバインド（lsp-mode 内で有効）
-;; ---------------------------------------------------------
-;; (use-package lsp-mode
-;;   :bind (:map lsp-mode-map
-;;               ("M-."     . lsp-find-definition)
-;;               ("M-?"     . lsp-find-references)
-;;               ("C-c C-f" . lsp-format-buffer)
-;;               ("C-c C-r" . lsp-rename)
-;;               ("C-c C-d" . lsp-describe-thing-at-point)))
-
-;; ---------------------------------------------------------
-;; 完了！
-;; ---------------------------------------------------------
-(message "init.el loaded successfully! Enjoy Ivy-posframe + C LSP! one times")
 
 
 ;; ====================
@@ -462,6 +408,322 @@
 (when (getenv "WSL_DISTRO_NAME")
   (setq skk-server-host "localhost")
   (setq skk-server-port 1178))
+
+
+;; ==============================================================
+;; persistent-scratch（scratchバッファを永続化）– use-package 版
+;; ==============================================================
+
+(use-package persistent-scratch
+  :ensure t    ; MELPA から自動インストール
+  :config
+  ;; デフォルト設定：自動保存 + 起動時復元（エラーが出ないよう安全）
+  (with-eval-after-load 'emacs
+    (ignore-errors
+      (persistent-scratch-setup-default)))
+
+  ;; オプション：自動保存モードを明示的に有効（好みで）
+  ;; (persistent-scratch-autosave-mode 1)
+
+  ;; カスタマイズ例：保存ファイルのパスを変更したい場合
+  ;; (setq persistent-scratch-save-file (expand-file-name "~/.emacs.d/scratch-save.el"))
+  )
+;; ---------------------------------------------------------
+;; org-mode  https://mugijiru.github.io/.emacs.d/org-mode/base/
+;; ---------------------------------------------------------
+
+;;org 用ディレクトリの指定
+;;デフォルトだと ~/org なのだけど ~/Documents/org というディレクトリを用意してそこにファイル。
+
+(setq org-directory (expand-file-name "~/Documents/org/"))
+
+;;タスク管理ファイルのフォルダの指定
+;;タスク管理ファイルがいくつかに分かれているがそれらをまとめて ~/Documents/org/tasks フォルダに置いて
+
+(setq my/org-tasks-directory (concat org-directory "tasks/"))
+;;とりあえずこの my/org-tasks-directory という変数を用意することで使い回している。
+
+;;タスクの状態管理のキーワード指定 org-mode といえば TODO 管理
+(setq org-todo-keywords
+            '((sequence "TODO" "EXAMINATION(e)" "READY(r)" "DOING(!)" "WAIT" "|" "DONE(!)" "SOMEDAY(s)")))
+
+;;    初期状態は TODO で、作業開始時点で DOING にして待ちが発生したら WAIT にして完了したら DONE に。
+;;    SOMEDAY は「いつかやる」に付与している
+
+;; 完了時間の記録 org-clock を使うようにしているしあんまり要らない気がする。もしかしたら habits で必要かもしれないけど。
+
+(setq org-log-done 'time)
+(setq org-log-into-drawer "LOGBOOK")
+
+;;org ファイルを開いた時の折り畳み デフォルト設定では全展開だけど、基本的に見出しだけ見れれば良いかなと思うのでそのように設定した。
+
+(custom-set-variables
+ '(org-startup-folded t))
+
+;;タグ設定時の補完候補設定 agenda ファイルに使われているタグは全部補完対象になってほしいのでそのように設定
+
+(custom-set-variables
+ '(org-complete-tags-always-offer-all-agenda-tags t))
+
+;;org-babel で評価可能な言語の指定
+
+(org-babel-do-load-languages 'org-babel-load-languages
+                             '( (plantuml . t)
+                             ;;  (sql . t)
+                             ;;  (gnuplot . t)
+                               (emacs-lisp . t)
+                               (shell . t)
+                               (python . t)
+                               (org . t)
+                             ;;  (graphql . t)
+                             ;;  (ruby . t)
+                               ))
+
+;;カスタム変数の設定
+;;org-id-link-to-org-use-id を t にしていると org-store-link を実行した時に自動で id を発行してそれを store してくれるようになる
+;;また archive ファイルを同じフォルダに archives フォルダを掘ってそこに格納したいので org-archive-location を設定している
+
+(custom-set-variables
+ '(org-id-link-to-org-use-id t)
+ '(org-archive-location "./archives/%s_archive::"))
+
+
+;; ---------------------------------------------------------
+;; org-agenda  https://mugijiru.github.io/.emacs.d/org-mode/agenda/
+;; ---------------------------------------------------------
+
+;; org-super-agenda のインストール
+;; org-mode のデフォルトの agenda だと表示周りが物足りなかったので org-super-agenda を導入している。
+;; 
+;; (el-get-bundle org-super-agenda)
+
+;; 週の始まりを日曜日に設定
+;; 週のスタートを日曜日とする派なので org-agenda の週の始まりも日曜日に設定している
+;; (custom-set-variables
+;;  '(org-agenda-start-on-weekday 0))
+;; 
+;; 1日単位をデフォルト表示に設定
+;; 1週間表示よりも「今日って何するんだっけ」みたいな使い方が多いので 1日を表示単位としている。
+;; 
+;; (custom-set-variables
+;;  '(org-agenda-span 'day))
+
+;;agenda の対象ファイルを指定 org-agenda を使う時に抽出対象とする org ファイルを指定している。
+
+;; (custom-set-variables
+;;  '(org-agenda-files '("~/Documents/org/" "~/Documents/org/tasks/")))
+
+
+;; org-journal 本体（MELPA/NonGNU ELPA から自動インストール）
+(use-package org-journal
+  :ensure t      ; 自動インストール（MELPA 優先）
+  :after org     ; org-mode 依存を解決
+  :defer t       ; 遅延ロード（高速起動）
+  :init
+  ;; プレフィックスキーを設定（org-journal ロード前に必要）
+  (setq org-journal-prefix-key "C-c n")
+  ;; org-mode 9.6 問題回避（キャリーオーバー正常化）
+  (setq org-element-use-cache nil)
+
+  :custom
+  ;; 基本設定（好みで調整）
+  (org-journal-dir "~/Documents/org/journal/")              ; ジャーナル保存ディレクトリ
+  (org-journal-date-format "%A, %d %B %Y")       ; 日付形式（例: "Monday, 18 November 2025"）
+  (org-journal-file-type 'daily)                 ; ファイル形式: daily (デフォルト) / weekly / monthly / yearly
+  (org-journal-file-header (lambda () "* %?"))   ; 新規エントリのヘッダー（%? でカーソル位置）
+  (org-journal-carryover-items "TODO")           ; キャリーオーバー対象: TODO 項目のみ
+  (org-journal-enable-encryption nil)            ; エントリ暗号化（org-crypt 依存）
+  (org-journal-enable-cache t)                   ; v2.0.0 以降のキャッシュ有効（高速化）
+  (org-journal-hide-entries-p t)                 ; 過去エントリを折りたたみ（見やすく）
+
+  :bind
+  ;; グローバルキーバインド（いつでも呼び出し）
+  ("C-c n n" . org-journal-new-entry)       ; 新規エントリ作成
+  ("C-c n o" . org-journal-open-current-file) ; 今日のファイルを開く
+  ("C-c n s" . org-journal-search)          ; ジャーナル検索
+  ("C-c n c" . org-journal-carryover-items) ; 手動キャリーオーバー
+
+  :config
+  ;; 追加カスタマイズ（Calendar 統合など）
+  ;; Agenda 統合（org-agenda-files に追加）
+  (add-to-list 'org-agenda-files (expand-file-name org-journal-dir))
+  ;; フック: 新規エントリ作成後に自動タイムスタンプ追加
+  (add-hook 'org-journal-after-entry-create-hook
+            (lambda () (org-insert-time-stamp (current-time))))
+  ;; 暗号化を使いたい場合（org-crypt インストール後）
+  ;; (setq org-journal-encrypt-journal t)  ; ファイル全体を .gpg で暗号化
+
+  ;; メッセージでロード完了を表示
+  (message "org-journal: インストール完了！ C-c j n で新規日記開始！"))
+
+;; ==============================================================
+;; 最終進化版：C言語開発＋LSP＋リアルタイムデバッグ完全統合
+;; Emacs 28.2 + WSL2 でも爆速・神体験確定
+;; ==============================================================
+
+;; ------------------------------
+;; 1. LSP 基本設定（clangd を使うのが2025年最強）
+;; ------------------------------
+(use-package lsp-mode
+  :ensure t
+  :hook ((c-mode . lsp)
+         (c++-mode . lsp))
+  :commands lsp
+  :custom
+  ;; clangd を使う（ccls より速い・正確・メンテナンスされてる）
+  (lsp-clients-clangd-executable "clangd")
+  (lsp-enable-which-key-integration t)
+  (lsp-enable-symbol-highlighting t)
+  (lsp-lens-enable t)                   ; コード上に関数名・参照数表示
+  (lsp-headerline-breadcrumb-enable t)  ; パンくずリスト（IDE並み）
+  (lsp-modeline-code-actions-enable t)
+  (lsp-completion-provider :capf)       ; Ivy/Company と完璧連携
+  (lsp-idle-delay 0.3)
+  (lsp-log-io nil)                      ; デバッグ時以外はログオフ
+  :config
+  ;; C言語特化設定
+  (setq lsp-clangd-binary-path "clangd")
+  (add-to-list 'lsp-language-id-configuration '(c-mode . "c"))
+  (lsp-register-custom-settings
+   '(("clangd.arguments" "--header-insertion=never") ; 自動インクルード防止
+     ("clangd.arguments" "--completion-style=detailed")
+     ("clangd.arguments" "--function-arg-placeholders"))))
+
+;; ------------------------------
+;; 2. LSP UI（見た目を VSCode 並みに美しく）
+;; ------------------------------
+(use-package lsp-ui
+  :ensure t
+  :after lsp-mode
+  :custom
+  (lsp-ui-doc-enable t)                  ; マウスオーバーでドキュメント
+  (lsp-ui-doc-position 'at-point)
+  (lsp-ui-doc-delay 0.5)
+  (lsp-ui-sideline-enable t)
+  (lsp-ui-sideline-show-hover t)
+  (lsp-ui-sideline-show-diagnostics t)
+  (lsp-ui-peek-enable t)                 ; M-? で参照ジャンプ
+  (lsp-ui-peek-always-show t)
+  :bind (:map lsp-ui-mode-map
+         ("C-c l d" . lsp-ui-doc-show)
+         ("C-c l p" . lsp-ui-peek-find-definitions)
+         ("C-c l r" . lsp-ui-peek-find-references)))
+
+;; ------------------------------
+;; 3. Ivy ユーザー向け LSP 補完・検索（最強連携）
+;; ------------------------------
+(use-package lsp-ivy
+  :ensure t
+  :after lsp-mode
+  :bind (:map lsp-mode-map
+         ("C-c C-." . lsp-ivy-workspace-symbol)))  ; C-c C-. で全シンボル検索（Ivy）
+
+         
+;; ------------------------------
+;; 1. dap-mode（Debugger Adapter Protocol）本体
+;; ------------------------------
+(use-package dap-mode
+  :ensure t
+  :custom
+  (dap-auto-configure-mode t)                  ; 自動で全部設定
+  (dap-auto-configure-features '(sessions locals controls tooltip))
+  :config
+  (require 'dap-gdb-lldb)                       ; gdb/lldb 対応（これでC/C++対応）
+  (require 'dap-cpptools)                      ; vscode-cpptools（超高機能・おすすめ）
+  (dap-auto-configure-mode 1)
+
+  ;; Linux/WSL2 では gdb でも十分速い（好みで切り替え）
+  (dap-register-debug-provider
+   "gdb" (lambda () '("gdb" "-i" "dap")))
+
+  ;; vscode-cpptools（最強・UIも美しい）を使う場合（任意）
+  ;; 初回だけ M-x dap-cpptools-setup で自動ダウンロード
+  )
+
+;; ------------------------------
+;; 2. dap-ui（デバッグ画面を超美しく）
+;; ------------------------------
+(use-package dap-ui
+  :ensure nil
+  :after dap-mode
+  :custom
+  (dap-ui-controls-mode t)          ; ツールバー表示
+  (dap-ui-variable-length 100)      ; 変数の表示を長く
+  :config
+  (dap-ui-mode 1))
+
+;; ------------------------------
+;; 3. C言語デバッグ用テンプレート（1クリックで起動）
+;; ------------------------------
+(use-package dap-mode
+  :bind (:map dap-mode-map
+         ("<f5>"   . dap-continue)          ; 続行（デバッグ開始も兼ねる）
+         ("<f9>"   . dap-breakpoint-toggle) ; ブレークポイント設置
+         ("<f10>"  . dap-next)              ; ステップオーバー
+         ("<f11>"  . dap-step-in)           ; ステップイン
+         ("<S-f11>". dap-step-out)          ; ステップアウト
+         ("C-c d r" . dap-debug-recent)     ; 最近のデバッグ構成で再開
+         ("C-c d e" . dap-debug-edit-template)) ; テンプレート編集
+
+  :config
+  ;; C言語用デバッグテンプレート（projectileと連携して自動で実行ファイルを見つける）
+  (dap-register-debug-template
+   "C/GDB Local (auto)"
+   (list :type "gdb"
+         :request "launch"
+         :name "GDB::Run (auto)"
+         :gdbpath "gdb"
+         :target (lambda () (projectile-expand-root (projectile-default-target projectile-project-name)))
+         :cwd (lambda () (projectile-project-root))
+         :arguments ""
+         :dap-server-path '("gdb" "-i" "dap"))))
+
+;; ------------------------------
+;; 4. LSPと連携（ブレークポイントがリアルタイム同期）
+;; ------------------------------
+(use-package lsp-mode
+  :ensure t
+  :hook ((c-mode . lsp) (c++-mode . lsp))
+  :custom
+  (lsp-clients-clangd-executable "clangd")
+  (lsp-enable-dap t)                     ; これでLSPとdap-modeが完全連携
+  :config
+  (lsp-enable-which-key-integration t))
+
+
+(use-package cc-mode
+  :custom
+  (c-default-style "linux")
+  (c-basic-offset 4)
+  (indent-tabs-mode nil)
+  :hook ((c-mode c++-mode) . (lambda ()
+                               (electric-pair-local-mode 1)
+                               (lsp))))   ; ← ここでLSP自動起動
+
+(use-package flycheck
+  :ensure t
+  :hook ((c-mode c++-mode) . flycheck-mode))
+  
+
+;; ------------------------------
+;; 6. デバッグ用最強キーバインド総まとめ（これで死なない）
+;; ------------------------------
+(global-set-key (kbd "<f5>")     'dap-continue)           ; デバッグ開始／続行
+(global-set-key (kbd "<f9>")     'dap-breakpoint-toggle)  ; ブレークポイント
+(global-set-key (kbd "<f10>")    'dap-next)               ; ステップオーバー
+(global-set-key (kbd "<f11>")    'dap-step-in)            ; ステップイン
+(global-set-key (kbd "<S-f11>")  'dap-step-out)           ; ステップアウト
+(global-set-key (kbd "C-c d b" ) 'dap-ui-breakpoints-list) ; ブレークポイント一覧
+(global-set-key (kbd "C-c d s" ) 'dap-ui-sessions)         ; セッション一覧
+(global-set-key (kbd "C-c d l" ) 'dap-ui-locals)           ; ローカル変数
+(global-set-key (kbd "C-c d e" ) 'dap-ui-expressions-add)  ; 監視式追加
+
+;; ------------------------------
+;; 7. 初回起動時に自動セットアップ（超便利）
+;; ------------------------------
+(with-eval-after-load 'dap-mode
+  (message "C言語デバッグ環境 完全構築完了！ F9でブレークポイント → F5でデバッグ開始！"))
+
 
 
 ;; ---------------------------------------------------------
