@@ -366,7 +366,7 @@
   ;; 見た目・挙動（2025年現在これが最強）
   (skk-use-azik t)                     ; AZIK（超打ちやすい拡張ローマ字）
   (skk-azik-keyboard-type 'pc106)      ; 日本語109キーボード用
-  (skk-sticky-key ";")                 ; ; で確定＋次候補
+;;  (skk-sticky-key ";")                 ; ; で確定＋次候補
   (skk-show-annotation t)              ; 注釈表示（単語の意味が出る）
   (skk-annotation-show-as-message nil) ; 注釈は別ウィンドウにしない
   (skk-show-tooltip t)                 ; ツールチップで候補表示（美しくて見やすい）
@@ -374,8 +374,8 @@
                             (foreground-color . "#ffffff")
                             (border-color . "#888888")))
   (skk-isearch-mode-enable nil)        ; isearch 中はSKK無効（好みで）
-  (skk-auto-start-henkan t)            ; 自動で変換開始
-  (skk-henkan-show-candidates-keys ?\; ?\:) ; ; と : で候補切り替え
+;;  (skk-auto-start-henkan t)            ; 自動で変換開始
+;;  (skk-henkan-show-candidates-keys ?\; ?\:) ; ; と : で候補切り替え
 
   :init
   ;; 初回起動時に大辞林を自動ダウンロード（~/.skk/ に置く）
@@ -528,18 +528,22 @@
   :custom
   ;; 基本設定（好みで調整）
   (org-journal-dir "~/Documents/org/journal/")              ; ジャーナル保存ディレクトリ
-  (org-journal-date-format "%A, %d %B %Y")       ; 日付形式（例: "Monday, 18 November 2025"）
+;;  (org-journal-date-format "%A, %d %B %Y")       ; 日付形式（例: "Monday, 18 November 2025"）
   (org-journal-file-type 'daily)                 ; ファイル形式: daily (デフォルト) / weekly / monthly / yearly
   (org-journal-file-header (lambda () "* %?"))   ; 新規エントリのヘッダー（%? でカーソル位置）
   (org-journal-carryover-items "TODO")           ; キャリーオーバー対象: TODO 項目のみ
   (org-journal-enable-encryption nil)            ; エントリ暗号化（org-crypt 依存）
   (org-journal-enable-cache t)                   ; v2.0.0 以降のキャッシュ有効（高速化）
   (org-journal-hide-entries-p t)                 ; 過去エントリを折りたたみ（見やすく）
-
+  (org-journal-file-format "%Y%m%d.org")
+  (org-journal-date-format "%d日(%a)")
+  ;;(setopt org-journal-enable-agenda-integration nil)
+  (org-journal-carryover-items "TODO={TODO\\|DOING\\|WAIT}")
+  
   :bind
   ;; グローバルキーバインド（いつでも呼び出し）
   ("C-c n n" . org-journal-new-entry)       ; 新規エントリ作成
-  ("C-c n o" . org-journal-open-current-file) ; 今日のファイルを開く
+;;  ("C-c n o" . org-journal-open-current-file) ; 今日のファイルを開く
   ("C-c n s" . org-journal-search)          ; ジャーナル検索
   ("C-c n c" . org-journal-carryover-items) ; 手動キャリーオーバー
 
@@ -555,6 +559,22 @@
 
   ;; メッセージでロード完了を表示
   (message "org-journal: インストール完了！ C-c j n で新規日記開始！"))
+
+;;Journal Capture Template
+;;You can configure a capture template in order to integrate org-journal with org-capture, as in the following example for a daily journal:
+;; https://github.com/bastibe/org-journal?tab=readme-ov-file#journal-capture-template
+
+(defun org-journal-find-location ()
+  ;; Open today's journal, but specify a non-nil prefix argument in order to
+  ;; inhibit inserting the heading; org-capture will insert the heading.
+  (org-journal-new-entry t)
+  (unless (eq org-journal-file-type 'daily)
+    (org-narrow-to-subtree))
+  (goto-char (point-max)))
+
+(setq org-capture-templates '(("j" "Journal entry" plain (function org-journal-find-location)
+                               "** %(format-time-string org-journal-time-format)%^{Title}\n%i%?"
+                               :jump-to-captured t :immediate-finish t)))
 
 ;; ==============================================================
 ;; 最終進化版：C言語開発＋LSP＋リアルタイムデバッグ完全統合
@@ -681,14 +701,14 @@
 ;; ------------------------------
 ;; 4. LSPと連携（ブレークポイントがリアルタイム同期）
 ;; ------------------------------
-(use-package lsp-mode
-  :ensure t
-  :hook ((c-mode . lsp) (c++-mode . lsp))
-  :custom
-  (lsp-clients-clangd-executable "clangd")
-  (lsp-enable-dap t)                     ; これでLSPとdap-modeが完全連携
-  :config
-  (lsp-enable-which-key-integration t))
+;; (use-package lsp-mode
+;;   :ensure t
+;;   :hook ((c-mode . lsp) (c++-mode . lsp))
+;;   :custom
+;;   (lsp-clients-clangd-executable "clangd")
+;;   (lsp-enable-dap t)                     ; これでLSPとdap-modeが完全連携
+;;   :config
+;;   (lsp-enable-which-key-integration t))
 
 
 (use-package cc-mode
