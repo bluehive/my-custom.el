@@ -135,10 +135,21 @@
   :custom
   (helpful-max-buffers 7))
 
+
+;;; SAVEHIST https://mugijiru.github.io/.emacs.d/basics/savehist/
+;;; Emacs  save from mini-buffer 
+
+(savehist-mode 1)
+(setq savehist-additional-variables '(kill-ring))
+
+
 ;; ---------------------------------------------------------
 ;; debug
 ;; ---------------------------------------------------------
-;;(message "init.el loaded ...  debug !! ")
+(message "init.el loaded ...  debug !! ")
+
+
+
 ;; ---------------------------------------------------------
 ;; 1. Ivy + Counsel + Posframe（中央表示 + ESC連打即閉じ）
 ;; ---------------------------------------------------------
@@ -284,6 +295,12 @@
 ;;               ("C-c C-r" . lsp-rename)
 ;;               ("C-c C-d" . lsp-describe-thing-at-point)))
 
+;; ---------------------------------------------------------
+;; 完了！
+;; ---------------------------------------------------------
+(message "init.el loaded successfully! Enjoy Ivy-posframe + C LSP! one times")
+
+
 ;; ====================
 ;; Embark（Ivy + Org 連携、src-block 挿入対応）
 ;; ====================
@@ -336,6 +353,12 @@
   (define-key embark-general-map (kbd "S") #'my/org-insert-src-block)
   )
 
+;; ---------------------------------------------------------
+;; 完了！
+;; ---------------------------------------------------------
+(message "init.el loaded successfully! Enjoy Ivy-posframe + C LSP!   two times")
+
+
 ;; ====================
 ;; avy – 高速ジャンプ
 ;; ====================
@@ -375,6 +398,71 @@
   ;; 日本語環境でも快適に（全角対応）
   (setq avy-dispatch-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l ?q ?w ?e ?r ?t ?y ?u ?i ?o ?p))
   )
+
+;; -----------------------------------------------------------------
+
+;; ==============================================================
+;; DDSKK（超快適日本語入力）– Emacs 28 完全対応・use-package 版
+;; ==============================================================
+
+;; 1. まず SKK の辞書を自動ダウンロード（初回だけ）
+(use-package ddskk
+  :ensure t
+  :bind (("C-x C-j" . skk-mode)        ; いつでもSKK起動
+         ("C-x j"   . skk-mode))       ; 短縮版（好みで）
+  :custom
+  ;; 辞書（これだけで大辞林＋人名地名＋全角記号までカバー）
+  (skk-large-jisyo "/usr/share/skk/SKK-JISYO.L")   ; システム辞書（Debian/Ubuntu）
+  ;; なければ自動で ~/.skk/SKK-JISYO.L をダウンロード
+  (skk-jisyo (or (file-exists-p "/usr/share/skk/SKK-JISYO.L")
+                 (expand-file-name "~/.skk/SKK-JISYO.L")))
+  
+  ;; 見た目・挙動（2025年現在これが最強）
+  (skk-use-azik t)                     ; AZIK（超打ちやすい拡張ローマ字）
+  (skk-azik-keyboard-type 'pc106)      ; 日本語109キーボード用
+  (skk-sticky-key ";")                 ; ; で確定＋次候補
+  (skk-show-annotation t)              ; 注釈表示（単語の意味が出る）
+  (skk-annotation-show-as-message nil) ; 注釈は別ウィンドウにしない
+  (skk-show-tooltip t)                 ; ツールチップで候補表示（美しくて見やすい）
+  (skk-tooltip-parameters '((background-color . "#333333")
+                            (foreground-color . "#ffffff")
+                            (border-color . "#888888")))
+  (skk-isearch-mode-enable nil)        ; isearch 中はSKK無効（好みで）
+  (skk-auto-start-henkan t)            ; 自動で変換開始
+  (skk-henkan-show-candidates-keys ?\; ?\:) ; ; と : で候補切り替え
+
+  :init
+  ;; 初回起動時に大辞林を自動ダウンロード（~/.skk/ に置く）
+  (unless (file-exists-p (expand-file-name "~/.skk/SKK-JISYO.L"))
+    (let ((url "https://raw.githubusercontent.com/skk-dev/dict/master/SKK-JISYO.L"))
+      (mkdir "~/.skk" t)
+      (url-copy-file url "~/.skk/SKK-JISYO.L" t)
+      (message "DDSKK: 大辞林をダウンロードしました！")))
+
+  :config
+  ;; 起動時に自動で SKK モード（好みで）
+  ;; (skk-mode 1)   ; ← 全バッファで常時SKKにしたい人はコメント解除
+
+  ;; 日本語入力中はカーソル色を変える（視認性爆上がり）
+  (setq skk-indicator-use-cursor-color t)
+  (defun my/skk-cursor-color ()
+    (set-cursor-color
+     (if (eq skk-henkan-mode 'active)
+         "#ff5555"   ; 変換中は赤
+       (if skk-jisx0208-latin-mode
+           "#55ff55"   ; ラテン入力中は緑
+         "#ffff55")))) ; 通常は黄
+  (add-hook 'skk-mode-hook #'my/skk-cursor-color)
+
+  ;; モードラインに「あ」「▽」「▼」を美しく表示
+  (setq skk-show-mode-in-mode-line t)
+  (setq skk-mode-in-menubar t))
+
+;; 2. 必要なら fcitx5 との共存（WSLg でも安心）
+(when (getenv "WSL_DISTRO_NAME")
+  (setq skk-server-host "localhost")
+  (setq skk-server-port 1178))
+
 
 ;; ---------------------------------------------------------
 ;; 完了！
