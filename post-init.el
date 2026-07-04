@@ -1,21 +1,144 @@
-;; -*- lexical-binding: t; -*-
+;;; FILENAME.el --- DESCRIPTION -*- no-byte-compile: t; lexical-binding: t; -*-
 
-;; ~/.emacs.d/init.el
-;; Emacs 28+ 専用・use-package 版（2025年11月17日 最高構成）
-
-;; ---------------------------------------------------------
-;; use-package の初期化（初回起動時は自動インストール）
-;; ---------------------------------------------------------
-;; (unless (package-installed-p 'use-package)
-;;   (package-refresh-contents)
-;;   (package-install 'use-package))
-;; 
-;; (require 'use-package)
-;; (setq use-package-always-ensure t)   ; :ensure t を省略可能に
-;; (setq use-package-verbose t)         ; デバッグ時に便利
+;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md
 
 
-;; ====================
+;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md#optimization-native-compilation
+;; compile-angel.el を用いて、Elisp コードのバイトコンパイルおよびネイティブコンパイルを自動化
+;; Native compilation enhances Emacs performance by converting Elisp code into
+;; native machine code, resulting in faster execution and improved
+;; responsiveness.
+;;
+;; Ensure adding the following compile-angel code at the very beginning
+;; of your `~/.emacs.d/post-init.el` file, before all other packages.
+(use-package compile-angel
+  :demand t
+  :config
+  ;; The following disables compilation of packages during installation;
+  ;; compile-angel will handle it.
+  (setq package-native-compile nil)
+
+  ;; Set `compile-angel-verbose' to nil to disable compile-angel messages.
+  ;; (When set to nil, compile-angel won't show which file is being compiled.)
+  (setq compile-angel-verbose t)
+
+  ;; The following directive prevents compile-angel from compiling your init
+  ;; files. If you choose to remove this push to `compile-angel-excluded-files'
+  ;; and compile your pre/post-init files, ensure you understand the
+  ;; implications and thoroughly test your code. For example, if you're using
+  ;; the `use-package' macro, you'll need to explicitly add:
+  ;; (eval-when-compile (require 'use-package))
+  ;; at the top of your init file.
+  (push "/init.el" compile-angel-excluded-files)
+  (push "/early-init.el" compile-angel-excluded-files)
+  (push "/pre-init.el" compile-angel-excluded-files)
+  (push "/post-init.el" compile-angel-excluded-files)
+  (push "/pre-early-init.el" compile-angel-excluded-files)
+  (push "/post-early-init.el" compile-angel-excluded-files)
+
+  ;; A local mode that compiles .el files whenever the user saves them.
+  ;; (add-hook 'emacs-lisp-mode-hook #'compile-angel-on-save-local-mode)
+
+  ;; A global mode that compiles .el files prior to loading them via `load' or
+  ;; `require'. Additionally, it compiles all packages that were loaded before
+  ;; the mode `compile-angel-on-load-mode' was activated.
+  (compile-angel-on-load-mode 1))
+
+
+;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md#file-management--history-recentf-savehist-saveplace-and-auto-revert
+;; Auto-revert in Emacs is a feature that automatically updates the
+;; contents of a buffer to reflect changes made to the underlying file
+;; on disk.
+(use-package autorevert
+  :ensure nil
+  :init
+  ;; (setq auto-revert-verbose t)
+  (setq auto-revert-interval 3)
+  (setq auto-revert-remote-files nil)
+  (setq auto-revert-use-notify t)
+  (setq auto-revert-avoid-polling nil)
+  :config
+  (global-auto-revert-mode 1))
+
+
+;; ファイル管理・履歴機能の有効化
+;; Recentf is an Emacs package that maintains a list of recently
+;; accessed files, making it easier to reopen files you have worked on
+;; recently.
+(use-package recentf
+  :ensure nil
+  :init
+  (setq recentf-auto-cleanup (if (daemonp) 300 'never))
+  (setq recentf-exclude
+        (list "\\.tar$" "\\.tbz2$" "\\.tbz$" "\\.tgz$" "\\.bz2$"
+              "\\.bz$" "\\.gz$" "\\.gzip$" "\\.xz$" "\\.zip$"
+              "\\.7z$" "\\.rar$"
+              "COMMIT_EDITMSG\\'"
+              "\\.\\(?:gz\\|gif\\|svg\\|png\\|jpe?g\\|bmp\\|xpm\\)$"
+              "-autoloads\\.el$" "autoload\\.el$"))
+
+  :config
+  ;; A cleanup depth of -90 ensures that `recentf-cleanup' runs before
+  ;; `recentf-save-list', allowing stale entries to be removed before the list
+  ;; is saved by `recentf-save-list', which is automatically added to
+  ;; `kill-emacs-hook' by `recentf-mode'.
+  (add-hook 'kill-emacs-hook #'recentf-cleanup -90)
+  ;; Enable `recentf-mode'
+  (recentf-mode 1))
+
+;; savehist is an Emacs feature that preserves the minibuffer history between
+;; sessions. It saves the history of inputs in the minibuffer, such as commands,
+;; search strings, and other prompts, to a file. This allows users to retain
+;; their minibuffer history across Emacs restarts.
+(use-package savehist
+  :ensure nil
+  :init
+  (setq history-length 300)
+  (setq savehist-autosave-interval 600)
+  :config
+  (savehist-mode 1))
+
+;; save-place-mode enables Emacs to remember the last location within a file
+;; upon reopening. This feature is particularly beneficial for resuming work at
+;; the precise point where you previously left off.
+(use-package saveplace
+  :ensure nil
+  :init
+  (setq save-place-limit 400)
+  :config
+  (save-place-mode 1))
+
+
+
+;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md#safety-auto-save
+;; auto-save-visited-mode を導入し、アイドル時の自動保存を有効
+;; Enable `auto-save-mode' to prevent data loss. Use `recover-file' or
+;; `recover-session' to restore unsaved changes.
+(setq auto-save-default t)
+
+;; Trigger an auto-save after 300 keystrokes
+(setq auto-save-interval 300)
+
+;; Trigger an auto-save 30 seconds of idle time.
+(setq auto-save-timeout 30)
+
+
+;; When auto-save-visited-mode is enabled, Emacs will auto-save file-visiting
+;; buffers after a certain amount of idle time if the user forgets to save it
+;; with save-buffer or C-x s for example.
+;;
+;; This is different from auto-save-mode: auto-save-mode periodically saves
+;; all modified buffers, creating backup files, including those not associated
+;; with a file, while auto-save-visited-mode only saves file-visiting buffers
+;; after a period of idle time, directly saving to the file itself without
+;; creating backup files.
+(setq auto-save-visited-interval 5)   ; Save after 5 seconds if inactivity
+(auto-save-visited-mode 1)
+
+
+
+
+;; easysession はウィンドウ構成、タブバー、バッファナローイング、Dired（ファイル管理）まで含めた高度な復元が可能である。
 ;; The easysession Emacs package is a session manager for Emacs that can persist
 ;; and restore file editing buffers, indirect buffers/clones, Dired buffers,
 ;; windows/splits, the built-in tab-bar (including tabs, their buffers, and
@@ -23,47 +146,99 @@
 ;; manage Emacs editing sessions and utilizes built-in Emacs functions to
 ;; persist and restore frames.
 (use-package easysession
-  :ensure t
-  :commands (easysession-switch-to
-             easysession-save-as
-             easysession-save-mode
-             easysession-load-including-geometry)
+  ;; ':demand t' ensures the package is loaded immediately upon startup
+  :demand t
 
-  :custom
-  (easysession-mode-line-misc-info t)   ; Display the session in the modeline
-  (easysession-save-interval (* 10 60)) ; Save every 10 minutes
-
-  :init
-  ;; Key mappings:
-  ;; C-c l for switching sessions
-  ;; and C-c s for saving the current session
-  (global-set-key (kbd "C-c l") 'easysession-switch-to)
-  (global-set-key (kbd "C-c s") 'easysession-save-as)
-
-  ;; The depth 102 and 103 have been added to to `add-hook' to ensure that the
-  ;; session is loaded after all other packages. (Using 103/102 is particularly
-  ;; useful for those using minimal-emacs.d, where some optimizations restore
-  ;; `file-name-handler-alist` at depth 101 during `emacs-startup-hook`.)
-  (add-hook 'emacs-startup-hook #'easysession-load-including-geometry 102)
-  (add-hook 'emacs-startup-hook #'easysession-save-mode 103))
-
-;; ====================
-;; format-all – 自動フォーマット（clang-format など使用）
-;; ====================
-
-(use-package format-all
-  :bind (:map prog-mode-map
-              ("C-c f" . format-all-buffer))  ;; バッファ全体フォーマット
-  :hook ((c-mode . format-all-mode)  ;; C モードで自動有効
-         (prog-mode . format-all-mode))  ;; 保存時自動フォーマット（オプション）
   :config
-  ;; C 用のフォーマッターを指定（デフォルト: clang-format）
-  (setq-default format-all-formatters
-                '(("C" (clang-format))))  ;; astyle に変えたい場合: (astyle "--mode=c")
+  ;; Key mappings
+  (global-set-key (kbd "C-c sl") #'easysession-switch-to) ; Load session
+  (global-set-key (kbd "C-c ss") #'easysession-save)      ; Save session
+  (global-set-key (kbd "C-c sL") #'easysession-switch-to-and-restore-geometry)
+  (global-set-key (kbd "C-c sr") #'easysession-rename)
+  (global-set-key (kbd "C-c sR") #'easysession-reset)
+  (global-set-key (kbd "C-c su") #'easysession-unload)
+  (global-set-key (kbd "C-c sd") #'easysession-delete)
 
-  ;; 保存時に自動フォーマット（有効化したい場合）
-  ;; (add-hook 'before-save-hook 'format-all-buffer nil t)
-  )
+  ;; Save every 10 minutes
+  (setq easysession-save-interval (* 10 60))
+
+  ;; Save the current session when using `easysession-switch-to'
+  (setq easysession-switch-to-save-session t)
+
+  ;; Do not exclude the current session when switching sessions
+  (setq easysession-switch-to-exclude-current nil)
+
+  ;; Display the active session name in the mode-line lighter.
+  ;; (setq easysession-save-mode-lighter-show-session-name t)
+
+  ;; Optionally, the session name can be shown in the modeline info area:
+  ;; (setq easysession-mode-line-misc-info t)
+  ;; non-nil: Make `easysession-setup' load the session automatically.
+  ;; (nil: session is not loaded automatically; the user can load it manually.)
+  (setq easysession-setup-load-session t)
+
+  ;; The `easysession-setup' function adds hooks:
+  ;; - To enable automatic session loading during `emacs-startup-hook', or
+  ;;   `server-after-make-frame-hook' when running in daemon mode.
+  ;; - To save the session at regular intervals, and when Emacs exits.
+  (easysession-setup))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ;; format-all – 自動フォーマット（clang-format など使用）
+;; ;; ====================
+
+;; (use-package format-all
+;;   :bind (:map prog-mode-map
+;;               ("C-c f" . format-all-buffer))  ;; バッファ全体フォーマット
+;;   :hook ((c-mode . format-all-mode)  ;; C モードで自動有効
+;;          (prog-mode . format-all-mode))  ;; 保存時自動フォーマット（オプション）
+;;   :config
+;;   ;; C 用のフォーマッターを指定（デフォルト: clang-format）
+;;   (setq-default format-all-formatters
+;;                 '(("C" (clang-format))))  ;; astyle に変えたい場合: (astyle "--mode=c")
+
+;;   ;; 保存時に自動フォーマット（有効化したい場合）
+;;   ;; (add-hook 'before-save-hook 'format-all-buffer nil t)
+;;   )
+
+
+;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md#configuring-markdown-mode-eg-readmemd-syntax
+;; The markdown-mode package provides a major mode for Emacs for syntax
+;; highlighting, editing commands, and preview support for Markdown documents.
+;; It supports core Markdown syntax as well as extensions like GitHub Flavored
+;; Markdown (GFM).
+(use-package markdown-mode
+  :commands (gfm-mode
+             gfm-view-mode
+             markdown-mode
+             markdown-view-mode)
+  :mode (("\\.markdown\\'" . markdown-mode)
+         ("\\.md\\'" . markdown-mode)
+         ("README\\.md\\'" . gfm-mode))
+  :bind
+  (:map markdown-mode-map
+        ("C-c C-e" . markdown-do)))
+
+
+;;; buffer-terminator を導入し、使用していないバッファを自動的にクリーンアップ
+(use-package buffer-terminator
+  :custom
+  ;; Enable/Disable verbose mode to log buffer cleanup events
+  (buffer-terminator-verbose nil)
+
+  ;; Set the inactivity timeout (in seconds) after which buffers are considered
+  ;; inactive (default is 30 minutes):
+  (buffer-terminator-inactivity-timeout (* 30 60)) ; 30 minutes
+
+  ;; Define how frequently the cleanup process should run (default is every 10
+  ;; minutes):
+  (buffer-terminator-interval (* 10 60)) ; 10 minutes
+
+  :config
+  (buffer-terminator-mode 1))
+
+
 
 ;; ------------------------------
 ;; 5. 既存の最強設定（ace-window, projectile, lsp-uiなどはそのまま）
@@ -94,7 +269,7 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; theme 
+;;;;; theme
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (mapc #'disable-theme custom-enabled-themes)  ; Disable all active themes
 ;; (load-theme 'deeper-blue t)  ; Load the built-in theme
@@ -113,17 +288,18 @@
   :ensure t
   :hook ((emacs-lisp-mode . paredit-mode)
          (lisp-mode . paredit-mode)          ;; Common Lisp, Schemeなどlisp系全般
+         (racket-mode . paredit-mode)        ;; Racket mode
          (scheme-mode . paredit-mode)        ;; Scheme専用メジャーモード
          (c-mode . paredit-mode)))            ;; C言語でも使いたい場合（普通はあまり使わないが要望に応じて）
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (use-package easy-kill
   :ensure t
   :config
   (global-set-key [remap kill-ring-save] 'easy-kill))
 
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helpful is an alternative to the built-in Emacs help that provides much more
 ;; contextual information.
 (use-package helpful
@@ -145,22 +321,15 @@
 
 
 ;;; SAVEHIST https://mugijiru.github.io/.emacs.d/basics/savehist/
-;;; Emacs  save from mini-buffer 
+;;; Emacs  save from mini-buffer
 
-(savehist-mode 1)
-(setq savehist-additional-variables '(kill-ring))
+;;(savehist-mode 1)
+;;(setq savehist-additional-variables '(kill-ring))
 
 ;; 以前に開いていた位置を保存/復元する
 ;;save-place-mode を有効にしていると以前に開いたことのあるファイルの、開いていた場所を覚えておいてくれる。
 
-(save-place-mode 1)
-
-
-
-;; ---------------------------------------------------------
-;; debug
-;; ---------------------------------------------------------
-(message "init.el loaded ...  debug !! ")
+;;(save-place-mode 1)
 
 
 
@@ -198,7 +367,7 @@
     ;; (when (and (fboundp 'ivy-posframe-cleanup)
     ;;            ivy-posframe-mode)
     ;;   (ivy-posframe-cleanup))
-    
+
     (abort-recursive-edit))
 
   (defvar my/esc-timer nil)
@@ -272,7 +441,7 @@
   ;;   "Keymap for embark actions on Org headings.")
   ;; (defvar embark-general-map (make-sparse-keymap)
   ;;   "General embark action keymap.")
-  ;; 
+  ;;
   ;; (defun my/org-insert-src-block (lang)
   ;;   "Org-mode で指定言語の src-block を挿入。"
   ;;   (interactive "sLanguage: ")
@@ -280,7 +449,7 @@
   ;;     (insert template)
   ;;     (forward-line -1)
   ;;     (end-of-line)))
-  ;; 
+  ;;
   ;; ;; よく使う言語でキーバインド登録
   ;; (dolist (pair '(("el" . "emacs-lisp")
   ;;                 ("py" . "python")
@@ -289,7 +458,7 @@
   ;;         (lang (cdr pair)))
   ;;     (define-key embark-org-heading-map (kbd key)
   ;;       `(lambda () (interactive) (my/org-insert-src-block ,lang)))))
-  ;; 
+  ;;
   ;; ;; 任意の言語を入力
   ;; (define-key embark-org-heading-map (kbd "s") #'my/org-insert-src-block)
   ;; ;; どこでも使える汎用アクション(S)
@@ -345,67 +514,67 @@
 (message "init.el loaded , avy jump ")
 
 
-;; ==============================================================
-;; DDSKK（超快適日本語入力）– Emacs 28 完全対応・use-package 版
-;; ==============================================================
+;; ;; ==============================================================
+;; ;; DDSKK（超快適日本語入力）– Emacs 28 完全対応・use-package 版
+;; ;; ==============================================================
 
-;; 1. まず SKK の辞書を自動ダウンロード（初回だけ）
-(use-package ddskk
-  :ensure t
-  :bind (("C-x C-j" . skk-mode)        ; いつでもSKK起動
-         ("C-x j"   . skk-mode))       ; 短縮版（好みで）
-  :custom
-  ;; 辞書（これだけで大辞林＋人名地名＋全角記号までカバー）
-  (skk-large-jisyo "/usr/share/skk/SKK-JISYO.L")   ; システム辞書（Debian/Ubuntu）
-  ;; なければ自動で ~/.skk/SKK-JISYO.L をダウンロード
-  (skk-jisyo (or (file-exists-p "/usr/share/skk/SKK-JISYO.L")
-                 (expand-file-name "~/.skk/SKK-JISYO.L")))
-  
-  ;; 見た目・挙動（2025年現在これが最強）
-  (skk-use-azik t)                     ; AZIK（超打ちやすい拡張ローマ字）;;
-;;  (skk-azik-keyboard-type 'pc106)      ; 日本語109キーボード用
-;;  (skk-sticky-key ";")                 ; ; で確定＋次候補
-;;  (skk-show-annotation t)              ; 注釈表示（単語の意味が出る）
-;;  (skk-annotation-show-as-message nil) ; 注釈は別ウィンドウにしない
-  (skk-show-tooltip t)                 ; ツールチップで候補表示（美しくて見やすい）
-  (skk-tooltip-parameters '((background-color . "#333333")
-                            (foreground-color . "#ffffff")
-                            (border-color . "#888888")))
-  (skk-isearch-mode-enable nil)        ; isearch 中はSKK無効（好みで）
-;;  (skk-auto-start-henkan t)            ; 自動で変換開始
-;;  (skk-henkan-show-candidates-keys ?\; ?\:) ; ; と : で候補切り替え
+;; ;; 1. まず SKK の辞書を自動ダウンロード（初回だけ）
+;; (use-package ddskk
+;;   :ensure t
+;;   :bind (("C-x C-j" . skk-mode)        ; いつでもSKK起動
+;;          ("C-x j"   . skk-mode))       ; 短縮版（好みで）
+;;   :custom
+;;   ;; 辞書（これだけで大辞林＋人名地名＋全角記号までカバー）
+;;   (skk-large-jisyo "/usr/share/skk/SKK-JISYO.L")   ; システム辞書（Debian/Ubuntu）
+;;   ;; なければ自動で ~/.skk/SKK-JISYO.L をダウンロード
+;;   (skk-jisyo (or (file-exists-p "/usr/share/skk/SKK-JISYO.L")
+;;                  (expand-file-name "~/.skk/SKK-JISYO.L")))
 
-  :init
-  ;; 初回起動時に大辞林を自動ダウンロード（~/.skk/ に置く）
-  (unless (file-exists-p (expand-file-name "~/.skk/SKK-JISYO.L"))
-    (let ((url "https://raw.githubusercontent.com/skk-dev/dict/master/SKK-JISYO.L"))
-      (mkdir "~/.skk" t)
-      (url-copy-file url "~/.skk/SKK-JISYO.L" t)
-      (message "DDSKK: 大辞林をダウンロードしました！")))
+;;   ;; 見た目・挙動（2025年現在これが最強）
+;;   (skk-use-azik t)                     ; AZIK（超打ちやすい拡張ローマ字）;;
+;; ;;  (skk-azik-keyboard-type 'pc106)      ; 日本語109キーボード用
+;; ;;  (skk-sticky-key ";")                 ; ; で確定＋次候補
+;; ;;  (skk-show-annotation t)              ; 注釈表示（単語の意味が出る）
+;; ;;  (skk-annotation-show-as-message nil) ; 注釈は別ウィンドウにしない
+;;   (skk-show-tooltip t)                 ; ツールチップで候補表示（美しくて見やすい）
+;;   (skk-tooltip-parameters '((background-color . "#333333")
+;;                             (foreground-color . "#ffffff")
+;;                             (border-color . "#888888")))
+;;   (skk-isearch-mode-enable nil)        ; isearch 中はSKK無効（好みで）
+;; ;;  (skk-auto-start-henkan t)            ; 自動で変換開始
+;; ;;  (skk-henkan-show-candidates-keys ?\; ?\:) ; ; と : で候補切り替え
 
-  :config
-  ;; 起動時に自動で SKK モード（好みで）
-  ;; (skk-mode 1)   ; ← 全バッファで常時SKKにしたい人はコメント解除
+;;   :init
+;;   ;; 初回起動時に大辞林を自動ダウンロード（~/.skk/ に置く）
+;;   (unless (file-exists-p (expand-file-name "~/.skk/SKK-JISYO.L"))
+;;     (let ((url "https://raw.githubusercontent.com/skk-dev/dict/master/SKK-JISYO.L"))
+;;       (mkdir "~/.skk" t)
+;;       (url-copy-file url "~/.skk/SKK-JISYO.L" t)
+;;       (message "DDSKK: 大辞林をダウンロードしました！")))
 
-  ;; 日本語入力中はカーソル色を変える（視認性爆上がり）
-  (setq skk-indicator-use-cursor-color t)
-  (defun my/skk-cursor-color ()
-    (set-cursor-color
-     (if (eq skk-henkan-mode 'active)
-         "#ff5555"   ; 変換中は赤
-       (if skk-jisx0208-latin-mode
-           "#55ff55"   ; ラテン入力中は緑
-         "#ffff55")))) ; 通常は黄
-  (add-hook 'skk-mode-hook #'my/skk-cursor-color)
+;;   :config
+;;   ;; 起動時に自動で SKK モード（好みで）
+;;   ;; (skk-mode 1)   ; ← 全バッファで常時SKKにしたい人はコメント解除
 
-  ;; モードラインに「あ」「▽」「▼」を美しく表示
-  (setq skk-show-mode-in-mode-line t)
-  (setq skk-mode-in-menubar t))
+;;   ;; 日本語入力中はカーソル色を変える（視認性爆上がり）
+;;   (setq skk-indicator-use-cursor-color t)
+;;   (defun my/skk-cursor-color ()
+;;     (set-cursor-color
+;;      (if (eq skk-henkan-mode 'active)
+;;          "#ff5555"   ; 変換中は赤
+;;        (if skk-jisx0208-latin-mode
+;;            "#55ff55"   ; ラテン入力中は緑
+;;          "#ffff55")))) ; 通常は黄
+;;   (add-hook 'skk-mode-hook #'my/skk-cursor-color)
 
-;; 2. 必要なら fcitx5 との共存（WSLg でも安心）
-(when (getenv "WSL_DISTRO_NAME")
-  (setq skk-server-host "localhost")
-  (setq skk-server-port 1178))
+;;   ;; モードラインに「あ」「▽」「▼」を美しく表示
+;;   (setq skk-show-mode-in-mode-line t)
+;;   (setq skk-mode-in-menubar t))
+
+;; ;; 2. 必要なら fcitx5 との共存（WSLg でも安心）
+;; (when (getenv "WSL_DISTRO_NAME")
+;;   (setq skk-server-host "localhost")
+;;   (setq skk-server-port 1178))
 
 
 ;; ==============================================================
@@ -426,323 +595,225 @@
   ;; カスタマイズ例：保存ファイルのパスを変更したい場合
   ;; (setq persistent-scratch-save-file (expand-file-name "~/.emacs.d/scratch-save.el"))
   )
-;; ---------------------------------------------------------
-;; org-mode  https://mugijiru.github.io/.emacs.d/org-mode/base/
-;; ---------------------------------------------------------
+;; ;; ---------------------------------------------------------
+;; ;; org-mode  https://mugijiru.github.io/.emacs.d/org-mode/base/
+;; ;; ---------------------------------------------------------
 
-;;org 用ディレクトリの指定
-;;デフォルトだと ~/org なのだけど ~/Documents/org というディレクトリを用意してそこにファイル。
+;; ;;org 用ディレクトリの指定
+;; ;;デフォルトだと ~/org なのだけど ~/Documents/org というディレクトリを用意してそこにファイル。
 
-(setq org-directory (expand-file-name "~/Documents/org/"))
+;; (setq org-directory (expand-file-name "~/Documents/org/"))
 
-;;タスク管理ファイルのフォルダの指定
-;;タスク管理ファイルがいくつかに分かれているがそれらをまとめて ~/Documents/org/tasks フォルダに置いて
+;; ;;タスク管理ファイルのフォルダの指定
+;; ;;タスク管理ファイルがいくつかに分かれているがそれらをまとめて ~/Documents/org/tasks フォルダに置いて
 
-(setq my/org-tasks-directory (concat org-directory "tasks/"))
-;;とりあえずこの my/org-tasks-directory という変数を用意することで使い回している。
+;; (setq my/org-tasks-directory (concat org-directory "tasks/"))
+;; ;;とりあえずこの my/org-tasks-directory という変数を用意することで使い回している。
 
-;;タスクの状態管理のキーワード指定 org-mode といえば TODO 管理
-(setq org-todo-keywords
-            '((sequence "TODO" "EXAMINATION(e)" "READY(r)" "DOING(!)" "WAIT" "|" "DONE(!)" "SOMEDAY(s)")))
+;; ;;タスクの状態管理のキーワード指定 org-mode といえば TODO 管理
+;; (setq org-todo-keywords
+;;             '((sequence "TODO" "EXAMINATION(e)" "READY(r)" "DOING(!)" "WAIT" "|" "DONE(!)" "SOMEDAY(s)")))
 
-;;    初期状態は TODO で、作業開始時点で DOING にして待ちが発生したら WAIT にして完了したら DONE に。
-;;    SOMEDAY は「いつかやる」に付与している
+;; ;;    初期状態は TODO で、作業開始時点で DOING にして待ちが発生したら WAIT にして完了したら DONE に。
+;; ;;    SOMEDAY は「いつかやる」に付与している
 
-;; 完了時間の記録 org-clock を使うようにしているしあんまり要らない気がする。もしかしたら habits で必要かもしれないけど。
+;; ;; 完了時間の記録 org-clock を使うようにしているしあんまり要らない気がする。もしかしたら habits で必要かもしれないけど。
 
-(setq org-log-done 'time)
-(setq org-log-into-drawer "LOGBOOK")
+;; (setq org-log-done 'time)
+;; (setq org-log-into-drawer "LOGBOOK")
 
-;;org ファイルを開いた時の折り畳み デフォルト設定では全展開だけど、基本的に見出しだけ見れれば良いかなと思うのでそのように設定した。
-
-(custom-set-variables
- '(org-startup-folded t))
-
-;;タグ設定時の補完候補設定 agenda ファイルに使われているタグは全部補完対象になってほしいのでそのように設定
-
-(custom-set-variables
- '(org-complete-tags-always-offer-all-agenda-tags t))
-
-;;org-babel で評価可能な言語の指定
-
-(org-babel-do-load-languages 'org-babel-load-languages
-                             '( (plantuml . t)
-                             ;;  (sql . t)
-                             ;;  (gnuplot . t)
-                               (emacs-lisp . t)
-                               (shell . t)
-                               (python . t)
-                               (org . t)
-                             ;;  (graphql . t)
-                             ;;  (ruby . t)
-                               ))
-
-;;カスタム変数の設定
-;;org-id-link-to-org-use-id を t にしていると org-store-link を実行した時に自動で id を発行してそれを store してくれるようになる
-;;また archive ファイルを同じフォルダに archives フォルダを掘ってそこに格納したいので org-archive-location を設定している
-
-(custom-set-variables
- '(org-id-link-to-org-use-id t)
- '(org-archive-location "./archives/%s_archive::"))
-
-
-;; ---------------------------------------------------------
-;; org-agenda  https://mugijiru.github.io/.emacs.d/org-mode/agenda/
-;; ---------------------------------------------------------
-
-;; org-super-agenda のインストール
-;; org-mode のデフォルトの agenda だと表示周りが物足りなかったので org-super-agenda を導入している。
-;; 
-;; (el-get-bundle org-super-agenda)
-
-;; 週の始まりを日曜日に設定
-;; 週のスタートを日曜日とする派なので org-agenda の週の始まりも日曜日に設定している
-;; (custom-set-variables
-;;  '(org-agenda-start-on-weekday 0))
-;; 
-;; 1日単位をデフォルト表示に設定
-;; 1週間表示よりも「今日って何するんだっけ」みたいな使い方が多いので 1日を表示単位としている。
-;; 
-;; (custom-set-variables
-;;  '(org-agenda-span 'day))
-
-;;agenda の対象ファイルを指定 org-agenda を使う時に抽出対象とする org ファイルを指定している。
+;; ;;org ファイルを開いた時の折り畳み デフォルト設定では全展開だけど、基本的に見出しだけ見れれば良いかなと思うのでそのように設定した。
 
 ;; (custom-set-variables
-;;  '(org-agenda-files '("~/Documents/org/" "~/Documents/org/tasks/")))
+;;  '(org-startup-folded t))
 
+;; ;;タグ設定時の補完候補設定 agenda ファイルに使われているタグは全部補完対象になってほしいのでそのように設定
 
-;; org-journal 本体（MELPA/NonGNU ELPA から自動インストール）
-(use-package org-journal
-  :ensure t      ; 自動インストール（MELPA 優先）
-  :after org     ; org-mode 依存を解決
-  :defer t       ; 遅延ロード（高速起動）
-  :init
-  ;; プレフィックスキーを設定（org-journal ロード前に必要）
-  (setq org-journal-prefix-key "C-c n")
-  ;; org-mode 9.6 問題回避（キャリーオーバー正常化）
-  (setq org-element-use-cache nil)
+;; (custom-set-variables
+;;  '(org-complete-tags-always-offer-all-agenda-tags t))
 
-  :custom
-  ;; 基本設定（好みで調整）
-  (org-journal-dir "~/Documents/org/journal/")              ; ジャーナル保存ディレクトリ
-;;  (org-journal-date-format "%A, %d %B %Y")       ; 日付形式（例: "Monday, 18 November 2025"）
-  (org-journal-file-type 'daily)                 ; ファイル形式: daily (デフォルト) / weekly / monthly / yearly
-  (org-journal-file-header (lambda () "* %?"))   ; 新規エントリのヘッダー（%? でカーソル位置）
-  (org-journal-carryover-items "TODO")           ; キャリーオーバー対象: TODO 項目のみ
-  (org-journal-enable-encryption nil)            ; エントリ暗号化（org-crypt 依存）
-  (org-journal-enable-cache t)                   ; v2.0.0 以降のキャッシュ有効（高速化）
-  (org-journal-hide-entries-p t)                 ; 過去エントリを折りたたみ（見やすく）
-  (org-journal-file-format "%Y%m%d.org")
-  (org-journal-date-format "%d日(%a)")
-  ;;(setopt org-journal-enable-agenda-integration nil)
-  (org-journal-carryover-items "TODO={TODO\\|DOING\\|WAIT}")
-  
-  :bind
-  ;; グローバルキーバインド（いつでも呼び出し）
-  ("C-c j n" . org-journal-new-entry)       ; 新規エントリ作成
-;;  ("C-c n o" . org-journal-open-current-file) ; 今日のファイルを開く
-  ("C-c j s" . org-journal-search)          ; ジャーナル検索
-  ("C-c j c" . org-journal-carryover-items) ; 手動キャリーオーバー
+;; ;;org-babel で評価可能な言語の指定
 
-  :config
-  ;; 追加カスタマイズ（Calendar 統合など）
-  ;; Agenda 統合（org-agenda-files に追加）
-  (add-to-list 'org-agenda-files (expand-file-name org-journal-dir))
-  ;; フック: 新規エントリ作成後に自動タイムスタンプ追加
-  (add-hook 'org-journal-after-entry-create-hook
-            (lambda () (org-insert-time-stamp (current-time))))
-  ;; 暗号化を使いたい場合（org-crypt インストール後）
-  ;; (setq org-journal-encrypt-journal t)  ; ファイル全体を .gpg で暗号化
+;; (org-babel-do-load-languages 'org-babel-load-languages
+;;                              '( (plantuml . t)
+;;                              ;;  (sql . t)
+;;                              ;;  (gnuplot . t)
+;;                                (emacs-lisp . t)
+;;                                (shell . t)
+;;                                (python . t)
+;;                                (org . t)
+;;                              ;;  (graphql . t)
+;;                              ;;  (ruby . t)
+;;                                ))
 
-  ;; メッセージでロード完了を表示
-  (message "org-journal: インストール完了！ C-c j n で新規日記開始！"))
+;; ;;カスタム変数の設定
+;; ;;org-id-link-to-org-use-id を t にしていると org-store-link を実行した時に自動で id を発行してそれを store してくれるようになる
+;; ;;また archive ファイルを同じフォルダに archives フォルダを掘ってそこに格納したいので org-archive-location を設定している
 
-;;Journal Capture Template
-;;You can configure a capture template in order to integrate org-journal with org-capture, as in the following example for a daily journal:
-;; https://github.com/bastibe/org-journal?tab=readme-ov-file#journal-capture-template
+;; (custom-set-variables
+;;  '(org-id-link-to-org-use-id t)
+;;  '(org-archive-location "./archives/%s_archive::"))
 
-(defun org-journal-find-location ()
-  ;; Open today's journal, but specify a non-nil prefix argument in order to
-  ;; inhibit inserting the heading; org-capture will insert the heading.
-  (org-journal-new-entry t)
-  (unless (eq org-journal-file-type 'daily)
-    (org-narrow-to-subtree))
-  (goto-char (point-max)))
+;;;;;;;;;; racket mode
+;;;;;;;;; https://github.com/greghendershott/racket-mode
 
-(setq org-capture-templates '(("j" "Journal entry" plain (function org-journal-find-location)
-                               "** %(format-time-string org-journal-time-format)%^{Title}\n%i%?"
-                               :jump-to-captured t :immediate-finish t)))
-
-;; ==============================================================
-;; 最終進化版：C言語開発＋LSP＋リアルタイムデバッグ完全統合
-;; Emacs 28.2 + WSL2 でも爆速・神体験確定
-;; ==============================================================
-
-;; ------------------------------
-;; 1. LSP 基本設定（clangd を使うのが2025年最強）
-;; ------------------------------
-;; (use-package lsp-mode
-;;   :ensure t
-;;   :hook ((c-mode . lsp)
-;;          (c++-mode . lsp))
-;;   :commands lsp
-;;   :custom
-;;   ;; clangd を使う（ccls より速い・正確・メンテナンスされてる）
-;;   (lsp-clients-clangd-executable "clangd")
-;;   (lsp-enable-which-key-integration t)
-;;   (lsp-enable-symbol-highlighting t)
-;;   (lsp-lens-enable t)                   ; コード上に関数名・参照数表示
-;;   (lsp-headerline-breadcrumb-enable t)  ; パンくずリスト（IDE並み）
-;;   (lsp-modeline-code-actions-enable t)
-;;   (lsp-completion-provider :capf)       ; Ivy/Company と完璧連携
-;;   (lsp-idle-delay 0.3)
-;;   (lsp-log-io nil)                      ; デバッグ時以外はログオフ
-;;   :config
-;;   ;; C言語特化設定
-;;   (setq lsp-clangd-binary-path "clangd")
-;;   (add-to-list 'lsp-language-id-configuration '(c-mode . "c"))
-;;   (lsp-register-custom-settings
-;;    '(("clangd.arguments" "--header-insertion=never") ; 自動インクルード防止
-;;      ("clangd.arguments" "--completion-style=detailed")
-;;      ("clangd.arguments" "--function-arg-placeholders"))))
-;; 
-;; ;; ------------------------------
-;; ;; 2. LSP UI（見た目を VSCode 並みに美しく）
-;; ;; ------------------------------
-;; (use-package lsp-ui
-;;   :ensure t
-;;   :after lsp-mode
-;;   :custom
-;;   (lsp-ui-doc-enable t)                  ; マウスオーバーでドキュメント
-;;   (lsp-ui-doc-position 'at-point)
-;;   (lsp-ui-doc-delay 0.5)
-;;   (lsp-ui-sideline-enable t)
-;;   (lsp-ui-sideline-show-hover t)
-;;   (lsp-ui-sideline-show-diagnostics t)
-;;   (lsp-ui-peek-enable t)                 ; M-? で参照ジャンプ
-;;   (lsp-ui-peek-always-show t)
-;;   :bind (:map lsp-ui-mode-map
-;;          ("C-c l d" . lsp-ui-doc-show)
-;;          ("C-c l p" . lsp-ui-peek-find-definitions)
-;;          ("C-c l r" . lsp-ui-peek-find-references)))
-
-;; ------------------------------
-;; 3. Ivy ユーザー向け LSP 補完・検索（最強連携）
-;; ------------------------------
-;; (use-package lsp-ivy
-;;   :ensure t
-;;   :after lsp-mode
-;;   :bind (:map lsp-mode-map
-;;          ("C-c C-." . lsp-ivy-workspace-symbol)))  ; C-c C-. で全シンボル検索（Ivy）
-
-         
-;; ------------------------------
-;; 1. dap-mode（Debugger Adapter Protocol）本体
-;; ------------------------------
-(use-package dap-mode
+(use-package racket-mode
   :ensure t
-  :custom
-  (dap-auto-configure-mode t)                  ; 自動で全部設定
-  (dap-auto-configure-features '(sessions locals controls tooltip))
   :config
-  (require 'dap-gdb-lldb)                       ; gdb/lldb 対応（これでC/C++対応）
-  (require 'dap-cpptools)                      ; vscode-cpptools（超高機能・おすすめ）
-  (dap-auto-configure-mode 1)
-
-  ;; Linux/WSL2 では gdb でも十分速い（好みで切り替え）
-  (dap-register-debug-provider
-   "gdb" (lambda () '("gdb" "-i" "dap")))
-
-  ;; vscode-cpptools（最強・UIも美しい）を使う場合（任意）
-  ;; 初回だけ M-x dap-cpptools-setup で自動ダウンロード
+  (setq racket-program "C:\\users\\mevius\\Racket\\Racket.exe")
   )
 
-;; ------------------------------
-;; 2. dap-ui（デバッグ画面を超美しく）
-;; ------------------------------
-(use-package dap-ui
-  :ensure nil
-  :after dap-mode
-  :custom
-  (dap-ui-controls-mode t)          ; ツールバー表示
-  (dap-ui-variable-length 100)      ; 変数の表示を長く
+;; 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; tree-sitter config
+;; UCRT64 の gcc を PATH に追加（文法コンパイル用）
+(let ((ucrt-bin "C:/msys64/ucrt64/bin"))
+  (when (file-directory-p ucrt-bin)
+    (setenv "PATH" (concat ucrt-bin path-separator (getenv "PATH")))
+    (setq exec-path (cons ucrt-bin exec-path))))
+
+(setq treesit-language-source-alist
+      '((c           "https://github.com/tree-sitter/tree-sitter-c")
+        (cpp         "https://github.com/tree-sitter/tree-sitter-cpp")
+        (lua         "https://github.com/tree-sitter-grammars/tree-sitter-lua")
+        (luau        "https://github.com/tree-sitter-grammars/tree-sitter-luau")
+        (elisp       "https://github.com/Wilfred/tree-sitter-elisp")
+        (common-lisp "https://github.com/tree-sitter-grammars/tree-sitter-commonlisp")
+        (scheme      "https://github.com/6cdh/tree-sitter-scheme")
+        (racket      "https://github.com/6cdh/tree-sitter-racket")))
+
+;; common-lisp のCシンボル名（ハイフンの有無）の不一致を解消するマッピング（一括インストールの前に定義）
+(add-to-list 'treesit-load-name-override-list
+             '(common-lisp "libtree-sitter-common-lisp" "tree_sitter_commonlisp"))
+
+;; 一括インストール（警告を抑制しつつ実行）
+(let ((warning-suppress-types '((treesit))))
+  (dolist (lang '(c cpp lua luau elisp common-lisp scheme racket))
+    (unless (treesit-language-available-p lang)
+      (ignore-errors
+        (treesit-install-language-grammar lang)))))
+
+
+;;;;;;;
+(setq major-mode-remap-alist
+      '((c-mode       . c-ts-mode)
+        (c++-mode     . c++-ts-mode)
+        (lua-mode     . lua-ts-mode)))   ; Emacs 30.1 以降は lua-ts-mode が built-in
+
+
+;;;;;;;;;;;;
+;; === tree-sitter ライブラリの検索パスを明示 ===
+(add-to-list 'treesit-extra-load-path
+             (file-name-concat user-emacs-directory "tree-sitter"))
+
+
+
+;; racket-mode が開かれたら自動でパーサーを作成
+(add-hook 'racket-mode-hook
+          (lambda ()
+            (when (treesit-language-available-p 'racket)
+              (treesit-parser-create 'racket))))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;; https://codeberg.org/akib/emacs-eat#headline-2
+;; ============================================
+;; eat (emacs-eat) を Quelpa でインストール
+;; ============================================
+
+;; NonGNU ELPA を念のため追加
+(add-to-list 'package-archives
+             '("nongnu" . "https://elpa.nongnu.org/nongnu/"))
+
+;; Quelpa の準備（初回のみ）
+(unless (package-installed-p 'quelpa)
+  (package-install 'quelpa))
+
+;; eat を Quelpa でインストール
+(quelpa '(eat :fetcher git
+              :url "https://codeberg.org/akib/emacs-eat"
+              :files ("*.el" ("term" "term/*.el") "*.texi"
+                      "*.ti" ("terminfo/e" "terminfo/e/*")
+                      ("terminfo/65" "terminfo/65/*")
+                      ("integration" "integration/*")
+                      (:exclude ".dir-locals.el" "*-tests.el"))))
+
+;; ここから通常の設定（:ensure は付けない）
+(use-package eat
   :config
-  (dap-ui-mode 1))
+  ;; Eshell との連携（強く推奨）
+  (add-hook 'eshell-load-hook #'eat-eshell-mode)
+  (add-hook 'eshell-load-hook #'eat-eshell-visual-command-mode))
 
-;; ------------------------------
-;; 3. C言語デバッグ用テンプレート（1クリックで起動）
-;; ------------------------------
-(use-package dap-mode
-  :bind (:map dap-mode-map
-         ("<f5>"   . dap-continue)          ; 続行（デバッグ開始も兼ねる）
-         ("<f9>"   . dap-breakpoint-toggle) ; ブレークポイント設置
-         ("<f10>"  . dap-next)              ; ステップオーバー
-         ("<f11>"  . dap-step-in)           ; ステップイン
-         ("<S-f11>". dap-step-out)          ; ステップアウト
-         ("C-c d r" . dap-debug-recent)     ; 最近のデバッグ構成で再開
-         ("C-c d e" . dap-debug-edit-template)) ; テンプレート編集
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; stripspace を導入し、保存時に末尾の不要な空白・空行を自動削除
+;; The stripspace Emacs package provides stripspace-local-mode, a minor mode
+;; that automatically removes trailing whitespace and blank lines at the end of
+;; the buffer when saving.
+(use-package stripspace
+  :commands stripspace-local-mode
+
+  ;; Enable for prog-mode-hook, text-mode-hook, conf-mode-hook
+  :hook ((prog-mode . stripspace-local-mode)
+         (text-mode . stripspace-local-mode)
+         (conf-mode . stripspace-local-mode))
+
+  :custom
+  ;; The `stripspace-only-if-initially-clean' option:
+  ;; - nil to always delete trailing whitespace.
+  ;; - Non-nil to only delete whitespace when the buffer is clean initially.
+  ;; (The initial cleanliness check is performed when `stripspace-local-mode'
+  ;; is enabled.)
+  (stripspace-only-if-initially-clean nil)
+
+  ;; Enabling `stripspace-restore-column' preserves the cursor's column position
+  ;; even after stripping spaces. This is useful in scenarios where you add
+  ;; extra spaces and then save the file. Although the spaces are removed in the
+  ;; saved file, the cursor remains in the same position, ensuring a consistent
+  ;; editing experience without affecting cursor placement.
+  (stripspace-restore-column t))
+
+
+;;;;;; yasnippet を導入し、定型文やコードブロックの入力をテンプレート化
+;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md#efficient-template-expansion-with-snippets
+;; The official collection of snippets for yasnippet.
+(use-package yasnippet-snippets
+  :after yasnippet)
+
+;; YASnippet is a template system designed that enhances text editing by
+;; enabling users to define and use snippets. When a user types a short
+;; abbreviation, YASnippet automatically expands it into a full template, which
+;; can include placeholders, fields, and dynamic content.
+(use-package yasnippet
+  :custom
+  (yas-also-auto-indent-first-line t)  ; Indent first line of snippet
+  (yas-also-indent-empty-lines t)
+  (yas-snippet-revival nil)  ; Setting this to t causes issues with undo
+  (yas-wrap-around-region nil) ; Do not wrap region when expanding snippets
+  ;; (yas-triggers-in-field nil)  ; Disable nested snippet expansion
+  ;; (yas-indent-line 'fixed) ; Do not auto-indent snippet content
+  ;; (yas-prompt-functions '(yas-no-prompt))  ; No prompt for snippet choices
+
+  :init
+  ;; Suppress verbose messages
+  (setq yas-verbosity 0)
 
   :config
-  ;; C言語用デバッグテンプレート（projectileと連携して自動で実行ファイルを見つける）
-  (dap-register-debug-template
-   "C/GDB Local (auto)"
-   (list :type "gdb"
-         :request "launch"
-         :name "GDB::Run (auto)"
-         :gdbpath "gdb"
-         :target (lambda () (projectile-expand-root (projectile-default-target projectile-project-name)))
-         :cwd (lambda () (projectile-project-root))
-         :arguments ""
-         :dap-server-path '("gdb" "-i" "dap"))))
-
-;; ------------------------------
-;; 4. LSPと連携（ブレークポイントがリアルタイム同期）
-;; ------------------------------
-;; (use-package lsp-mode
-;;   :ensure t
-;;   :hook ((c-mode . lsp) (c++-mode . lsp))
-;;   :custom
-;;   (lsp-clients-clangd-executable "clangd")
-;;   (lsp-enable-dap t)                     ; これでLSPとdap-modeが完全連携
-;;   :config
-;;   (lsp-enable-which-key-integration t))
+  (yas-global-mode 1))
 
 
-(use-package cc-mode
-  :custom
-  (c-default-style "linux")
-  (c-basic-offset 4)
-  (indent-tabs-mode nil)
-  :hook ((c-mode c++-mode) . (lambda ()
-                               (electric-pair-local-mode 1))))  ;; ← LSPは呼ばれません
+;;;;;;;;;;;;;;;;;;;;;;;;;;　重要　消さない ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Windows環境向けのクリップボード・コピペ設定の修正 (UTF-8版)
+(when (eq system-type 'windows-nt)
+  (set-selection-coding-system 'utf-8)
+  (set-clipboard-coding-system 'utf-8))
 
-(use-package flycheck
-  :ensure t
-  :hook ((c-mode c++-mode) . flycheck-mode))
-  
+;; デフォルトのフォントサイズを2段階大きく設定 (デフォルト 100/105 -> 140)
+(set-face-attribute 'default nil :height 140)
 
-;; ------------------------------
-;; 6. デバッグ用最強キーバインド総まとめ（これで死なない）
-;; ------------------------------
-(global-set-key (kbd "<f5>")     'dap-continue)           ; デバッグ開始／続行
-(global-set-key (kbd "<f9>")     'dap-breakpoint-toggle)  ; ブレークポイント
-(global-set-key (kbd "<f10>")    'dap-next)               ; ステップオーバー
-(global-set-key (kbd "<f11>")    'dap-step-in)            ; ステップイン
-(global-set-key (kbd "<S-f11>")  'dap-step-out)           ; ステップアウト
-(global-set-key (kbd "C-c d b" ) 'dap-ui-breakpoints-list) ; ブレークポイント一覧
-(global-set-key (kbd "C-c d s" ) 'dap-ui-sessions)         ; セッション一覧
-(global-set-key (kbd "C-c d l" ) 'dap-ui-locals)           ; ローカル変数
-(global-set-key (kbd "C-c d e" ) 'dap-ui-expressions-add)  ; 監視式追加
+;; GUI画面の右端での自動折り返し表示（ソフトラップ）を有効化
+(setq-default truncate-lines nil)
 
-;; ------------------------------
-;; 7. 初回起動時に自動セットアップ（超便利）
-;; ------------------------------
-(with-eval-after-load 'dap-mode
-  (message "C言語デバッグ環境 完全構築完了！ F9でブレークポイント → F5でデバッグ開始！"))
-
-;; ---------------------------------------------------------
-;; 完了！
-;; ---------------------------------------------------------
-(message "init.el loaded successfully! ")
-
+;;; custom.el ends here.
