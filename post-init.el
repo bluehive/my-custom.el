@@ -806,9 +806,14 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;　重要　消さない ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Windows環境向けのクリップボード・コピペ設定の修正 (UTF-8版)
+;;(when (eq system-type 'windows-nt)
+;;  (set-selection-coding-system 'utf-8)
+;;  (set-clipboard-coding-system 'utf-8))
+
+;; Windows環境向けのクリップボード・コピペ設定の修正 (CP932版)
 (when (eq system-type 'windows-nt)
-  (set-selection-coding-system 'utf-8)
-  (set-clipboard-coding-system 'utf-8))
+  (set-selection-coding-system 'japanese-cp932)
+  (set-clipboard-coding-system 'japanese-cp932))
 
 ;; デフォルトのフォントサイズを2段階大きく設定 (デフォルト 100/105 -> 140)
 (set-face-attribute 'default nil :height 140)
