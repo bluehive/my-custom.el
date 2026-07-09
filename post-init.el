@@ -436,6 +436,34 @@
   (define-key embark-file-map (kbd "o") #'find-file-other-window)
   (define-key embark-buffer-map (kbd "k") #'kill-buffer)
 
+;; Embark と ace-window の連携（任意のウィンドウで開く）
+;; 現在の post-init.el にはすでに ace-window が導入されており、Embarkのファイルアクションとして (define-key embark-file-map (kbd "o") #'find-file-other-window) が設定されています。
+;;これをさらに進化させ、**Embarkで選択したファイルやバッファを、ace-windowを使って「画面上の好きなウィンドウを指定して開く」**ようにすると便利です。
+;;以下のマクロとキーバインドを embark の :config セクションに追加（または変更）してみてください。
+
+(eval-when-compile
+  (defmacro my/embark-ace-action (fn)
+    `(defun ,(intern (concat "my/embark-ace-" (symbol-name fn))) ()
+       (interactive)
+       (with-demoted-errors "%s"
+         (require 'ace-window)
+         (let ((aw-dispatch-always t))
+           (aw-switch-to-window (aw-select nil))
+           (call-interactively (symbol-function ',fn)))))))
+
+;; 'o' を押したときの挙動を ace-window 連携に変更
+(define-key embark-file-map     (kbd "o") (my/embark-ace-action find-file))
+(define-key embark-buffer-map   (kbd "o") (my/embark-ace-action switch-to-buffer))
+
+
+;; Embarkのファイル操作マップ (embark-file-map) には、デフォルト以外にもよく使うアクションを追加しておくのがおすすめです。
+
+;; ファイルを別の場所へコピーする
+(define-key embark-file-map (kbd "c") #'copy-file)
+;; 選択したコマンドにキーバインディングを追加する
+(define-key embark-command-map (kbd "g") #'global-set-key)
+
+
   ;; 独自キーマップを作成
   ;; (defvar embark-org-heading-map (make-sparse-keymap)
   ;;   "Keymap for embark actions on Org headings.")
@@ -503,8 +531,21 @@
   (setq avy-goto-line-function #'avy-goto-line-below)
 
   ;; 日本語環境でも快適に（全角対応）
-  (setq avy-dispatch-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l ?q ?w ?e ?r ?t ?y ?u ?i ?o ?p))
-  )
+  (setq avy-dispatch-keys '(?a ?b ?s ?z ?d ?f ?g ?h ?j ?l ?q ?w ?e ?r ?u ?i ?p))
+
+  ;; AvyとEmbarkの直接連携（Anyアクション）の追加           
+  (defun avy-action-embark (pt)
+  (unwind-protect
+      (save-excursion
+        (goto-char pt)
+        (embark-act))
+    (select-window
+     (cdr (ringref avy-ring 0))))
+  t)
+             
+;; ディスパッチキー 'o' でEmbarkを呼び出す
+(setf (alist-get ?o avy-dispatch-alist) 'avy-action-embark)
+)
 
 ;; -----------------------------------------------------------------
 
@@ -512,6 +553,21 @@
 ;; --debug-init
 ;; ---------------------------------------------------------
 (message "init.el loaded , avy jump ")
+
+
+;; ---------------------------------------------------------------------------------------------------------------------------------
+;;treemacs を導入すると、視覚的に構造化されたツリーレイアウトでファイルが表示され、マウスクリックによるディレクトリの展開やファイルのオープンなど
+;; 
+(use-package treemacs
+  :defer t
+  :bind
+  (:map global-map
+        ("M-0"       . treemacs-select-window)
+        ("C-x t 1"   . treemacs-delete-other-windows)
+        ("C-x t t"   . treemacs)
+        ("C-x t B"   . treemacs-bookmark)
+        ("C-x t C-t" . treemacs-find-file)
+        ("C-x t M-t" . treemacs-find-tag)))
 
 
 ;; ;; ==============================================================
