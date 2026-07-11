@@ -957,4 +957,165 @@
 ;; GUI画面の右端での自動折り返し表示（ソフトラップ）を有効化
 (setq-default truncate-lines nil)
 
-;;; custom.el ends here.
+
+
+
+;; ============================================================
+;; Projectile 強化設定 (mugijiru 系 + 実践的追加)
+;; ============================================================
+;; 既存の (use-package projectile) の後ろに追記推奨
+;; より良いデフォルト + 無視パターン + キャッシュ
+
+(with-eval-after-load 'projectile
+  ;; より多くのルートマーカー
+  (setq projectile-project-root-files
+        (append '("package.json" "Cargo.toml" "pyproject.toml" "go.mod" "Makefile" ".git")
+                projectile-project-root-files))
+
+  ;; 実用的な無視パターン
+  (setq projectile-globally-ignored-directories
+        (append '(".git" "node_modules" "__pycache__" ".venv" "venv" "target" "dist" "build" ".next" ".cache")
+                projectile-globally-ignored-directories))
+
+  (setq projectile-globally-ignored-files
+        (append '("*.pyc" "*.pyo" "*.elc" "*.o" "*.so" "*.swp" "*~")
+                projectile-globally-ignored-files))
+
+  (setq projectile-enable-caching t)
+  (setq projectile-sort-order 'recently-active)
+  (setq projectile-indexing-method 'alien))
+
+;; 便利な追加コマンド（必要なら）
+;; (define-key projectile-mode-map (kbd "C-c p s s") 'projectile-ripgrep) ; など
+
+;; ============================================================
+;; Hermes Agent CLI を Emacs (MSYS2 / Linux / Windows) から使えるようにする
+;; ============================================================
+(let* ((win-dir "/c/Users/mevius/AppData/Local/hermes/hermes-agent/venv/Scripts")
+       (hermes-dir
+        (cond
+         ;; Windows + MSYS2 / Cygwin Emacs の場合（推奨パス）
+         ((memq system-type '(windows-nt cygwin))
+          win-dir)
+         ;; Linux / macOS の場合
+         ;; 必要なら (expand-file-name "~/.local/bin") などに変更
+         (t
+          (getenv "HERMES_DIR")))))
+  (when (and hermes-dir (file-directory-p hermes-dir))
+    (add-to-list 'exec-path hermes-dir t)
+    (setenv "PATH" (concat hermes-dir path-separator (getenv "PATH")))
+    (with-eval-after-load 'eshell
+      (add-to-list 'eshell-path-env hermes-dir))
+    ;; デバッグ用（必要なら有効化）
+    ;; (message "[Hermes] Added to exec-path: %s" hermes-dir)
+    ))
+
+;; MSYS2 Emacs (32bit) で外部プロセス起動時に "Invalid argument" が出る場合のワークアラウンド
+(when (and (eq system-type 'windows-nt)
+           (getenv "MSYSTEM"))   ; MSYS2 環境で動いている場合
+  ;; 32bit Emacs + 64bit プロセス の相性問題を緩和
+  (setq w32-quote-process-args t)
+  ;; 必要に応じて shell を明示的に bash --login で起動する
+  ;; (setq explicit-shell-file-name "bash")
+  ;; (setq explicit-bash-args '("--login" "-i"))
+  )
+
+;; ============================================================
+;; Emacs shell (M-x shell) を MSYS2 bash で正しく起動するための設定
+;; これで "Spawning child process: Invalid argument" を軽減
+;; ============================================================
+(when (getenv "MSYSTEM")
+  ;; MSYS2 / UCRT64 環境で動いている場合
+  (setq shell-file-name "bash")
+  (setq explicit-shell-file-name "bash")
+  ;; --login で ~/.bashrc を読み、PATH を正しく引き継ぐ
+  (setq explicit-bash-args '("--login" "-i"))
+
+  ;; 32bit Emacs で 64bit プロセスを起動しやすくする
+  (setq w32-quote-process-args t)
+  (setq w32-pipe-read-delay 0)
+
+  ;; 環境変数も明示
+  (setenv "SHELL" "bash")
+  (setenv "TERM" "xterm-256color")
+
+  (message "[Emacs] MSYS2 bash shell settings applied"))
+
+;; ============================================================
+;; eshell 向けの追加対策（32bit Emacs + 外部64bitコマンド対策）
+;; ============================================================
+(with-eval-after-load 'eshell
+  ;; eshell で外部コマンドを優先
+  (setq eshell-prefer-lisp-functions nil)
+
+  ;; 実行可能ファイルのサフィックス（MSYS2用）
+  (setq eshell-binary-suffixes '(".exe" ".bat" ".cmd" ""))
+
+  ;; hermes-dir を eshell の PATH にも確実に追加（すでに上のコードでやっているが念のため）
+  (let ((win-dir "/c/Users/mevius/AppData/Local/hermes/hermes-agent/venv/Scripts"))
+    (when (file-directory-p win-dir)
+      (add-to-list 'eshell-path-env win-dir t)
+      (add-to-list 'exec-path win-dir t))))
+
+;; 強制的に bash 経由で外部コマンドを実行するラッパー
+;; M-x eshell や eshell で "hermes --version" が失敗する場合に使う
+;; ============================================================
+;; eshell で hermes / git を普通に打てるようにする（案B 有効化）
+;; M-! と同じ経路 (shell-command-to-string) を使うので安定
+;; ============================================================
+(defun my/eshell-run-via-shell (command &rest args)
+  "eshell から外部コマンドを shell-command 経路で実行する。
+直接 spawn が Invalid argument になる場合の回避策。"
+  (let* ((parts (cons command
+                      (mapcar (lambda (a) (format "%s" a)) args)))
+         (cmd (mapconcat #'identity parts " "))
+         (output (shell-command-to-string cmd)))
+    (when (and output (not (string-empty-p output)))
+      (eshell-print output))
+    nil))
+
+(with-eval-after-load 'eshell
+  ;; hermes: eshell で `hermes --version` などと普通に打てる
+  (defun eshell/hermes (&rest args)
+    "eshell 用 hermes ラッパー（shell-command 経路）"
+    (apply #'my/eshell-run-via-shell "hermes" args))
+
+  ;; git: eshell で `git --version` などと普通に打てる
+  ;; （Magit がある場合は Magit 優先でよいが、CLI 確認用に用意）
+  (defun eshell/git (&rest args)
+    "eshell 用 git ラッパー（shell-command 経路）"
+    (apply #'my/eshell-run-via-shell "git" args))
+
+  (message "[Emacs] eshell aliases enabled: hermes, git"))
+
+(message "eshell hermes/git aliases (案B) loaded")
+
+
+;; ============================================================
+;; より強力な MSYS2 shell 対策（32bit Emacs 向け）
+;; ============================================================
+(when (getenv "MSYSTEM")
+  ;; bash のフルパスを指定（相対名だと spawn に失敗しやすい）
+  (let ((possible-bash
+         (or (executable-find "bash")
+             "C:/msys64/usr/bin/bash.exe"
+             "C:/msys64/usr/bin/bash")))
+    (when (and possible-bash (file-executable-p possible-bash))
+      (setq shell-file-name possible-bash)
+      (setq explicit-shell-file-name possible-bash)))
+
+  (setq explicit-bash-args '("--login" "-i"))
+  (setq w32-quote-process-args t)
+  (setq w32-pipe-read-delay 0)
+  (setq process-connection-type nil)   ; pipe モードの方が安定する場合がある
+
+  ;; comint の安定化
+  (setq comint-process-echoes t)
+  (setq comint-scroll-show-maximum-output t)
+
+  (message "[Emacs] Stronger MSYS2 shell settings applied (full path + pipe)"))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; post-init.el ends here.
