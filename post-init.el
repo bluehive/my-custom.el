@@ -45,6 +45,13 @@
   (compile-angel-on-load-mode 1))
 
 
+;; MELPA is required for magit, forge, and many other modern packages.
+;; We add it early (before any :ensure t blocks) so that use-package can find them.
+;; NonGNU was already added later in the file for eat/quelpa.
+(add-to-list 'package-archives
+             '("melpa" . "https://melpa.org/packages/") t)
+
+
 ;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md#file-management--history-recentf-savehist-saveplace-and-auto-revert
 ;; Auto-revert in Emacs is a feature that automatically updates the
 ;; contents of a buffer to reflect changes made to the underlying file
@@ -185,7 +192,7 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; ;; format-all – 自動フォーマット（clang-format など使用）
+;; ;; format-all ? 自動フォーマット（clang-format など使用）
 ;; ;; ====================
 
 ;; (use-package format-all
@@ -266,6 +273,79 @@
   :ensure t
   :after (counsel projectile)
   :config (counsel-projectile-mode 1))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Magit + Forge (Git / GitHub クライアント)
+;;;;; あなたの GitHub 活用（bluehive リポジトリ群、my-grok-task-2026 Issue駆動）
+;;;;; および Racket プロジェクト開発に必須の設定を追加
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Magit は Emacs で最も完成度の高い Git クライアント。
+;; projectile と組み合わせることで「プロジェクトルートから一発でステータス表示」が可能になる。
+;; 既存の projectile (C-c p) + ivy/counsel スタックと自然に連携する。
+;;
+;; 特に以下の点であなたのワークフローにフィット：
+;; - Racket 実験リポジトリ（GeometryofSquareWaves-racket, lifeofgame-racket など）の頻繁なコミット
+;; - Kindle 本執筆関連のプライベートリポジトリ（draft-publish-books-2026, mypublish-*）
+;; - GitHub Issue/PR を多用している my-grok-task-2026
+;;
+;; 参考: projectile で ".git" をルートマーカーとして認識している設定と親和性が高い。
+
+(use-package magit
+  :ensure t
+  ;; バインドは定番のものを優先。既存の ace-window (C-x o) などと衝突しないよう注意。
+  :bind (("C-x g"   . magit-status)      ; 一番よく使う。プロジェクトの全体像を即確認
+         ("C-x M-g" . magit-dispatch)    ; すべての magit コマンドをメニューから選択
+         ("C-c M-g" . magit-file-dispatch)) ; 現在編集中のファイルに特化した操作（blame, log など）
+  :custom
+  ;; === Windows / MSYS2 環境向け重要設定 ===
+  ;; MSYS2 の bash から起動している場合、通常 "git" で PATH 内の git が見つかる。
+  ;; もし Windows 版 Git（C:\Program Files\Git\bin\git.exe）を使いたい場合は
+  ;; 以下のようにフルパスを指定する。
+  ;; (magit-git-executable "C:/Program Files/Git/bin/git.exe")
+  (magit-git-executable "git")
+
+  ;; 差分表示を「単語単位」で細かくハイライトする（非常に重要な熟練者向け設定）
+  ;; 行単位ではなく「どこが本当に変わったか」が一目でわかるようになる。
+  (magit-diff-refine-hunk 'all)
+
+  ;; ファイル保存時に「このリポジトリのバッファを保存しますか？」と毎回聞かれないようにする。
+  ;; 作業の流れを止めないための実用設定。
+  (magit-save-repository-buffers 'dontask)
+
+  ;; ウィンドウの使い方を控えめに（ace-window や treemacs と相性が良い）
+  ;; デフォルトのままでも良いが、画面が散らからないよう調整。
+  (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
+
+  ;; projectile で管理しているディレクトリを Magit に登録。
+  ;; C-x g したときに候補に出やすくなり、複数プロジェクトを横断しやすい。
+  ;; あなたの実際のディレクトリ構成に合わせて調整してください。
+  (magit-repository-directories
+   '(("~/my-project/" . 1)
+     ("~/src/" . 1)
+     ("~/work/" . 1)
+     ("~/.minimal-emacs.d/" . 0)   ; 自分の Emacs 設定自体も git 管理しているため追加
+     ("~/Documents/my-project/" . 1)))
+
+  :config
+  ;; 起動確認用メッセージ（必要なければ削除可）
+  ;; projectile と一緒に使っていることを意識したコメント。
+  (message "[magit] loaded - integrated with projectile and your GitHub workflow"))
+
+
+;; GitHub の Pull Request と Issue を Magit 内で直接操作するための拡張。
+;; これを入れると magit-status の中で "f" や "c" キーから PR 作成・レビューなどができる。
+;; あなたの GitHub 活用度が高いため強く推奨。
+(use-package forge
+  :after magit
+  :demand t
+  :config
+  ;; 認証方法（おすすめ順）:
+  ;; 1. ターミナルで `gh auth login` を実行（すでに gh CLI を使っているならこれが一番簡単）
+  ;; 2. ~/.authinfo.gpg に GitHub トークンを保存（gh を使っていない場合）
+  ;;
+  ;; トークンに必要なスコープ: repo, read:org, workflow など（すでに gh で repo スコープを取っているはず）
+  (message "[forge] loaded - GitHub PR/Issue integration enabled inside Magit"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -495,7 +575,7 @@
 
 
 ;; ====================
-;; avy – 高速ジャンプ
+;; avy ? 高速ジャンプ
 ;; ====================
 
 (use-package avy
@@ -533,7 +613,7 @@
   ;; 日本語環境でも快適に（全角対応）
   (setq avy-dispatch-keys '(?a ?b ?s ?z ?d ?f ?g ?h ?j ?l ?q ?w ?e ?r ?u ?i ?p))
 
-  ;; AvyとEmbarkの直接連携（Anyアクション）の追加           
+  ;; AvyとEmbarkの直接連携（Anyアクション）の追加
   (defun avy-action-embark (pt)
   (unwind-protect
       (save-excursion
@@ -542,7 +622,7 @@
     (select-window
      (cdr (ringref avy-ring 0))))
   t)
-             
+
 ;; ディスパッチキー 'o' でEmbarkを呼び出す
 (setf (alist-get ?o avy-dispatch-alist) 'avy-action-embark)
 )
@@ -557,7 +637,7 @@
 
 ;; ---------------------------------------------------------------------------------------------------------------------------------
 ;;treemacs を導入すると、視覚的に構造化されたツリーレイアウトでファイルが表示され、マウスクリックによるディレクトリの展開やファイルのオープンなど
-;; 
+;;
 (use-package treemacs
   :defer t
   :bind
@@ -571,7 +651,7 @@
 
 
 ;; ;; ==============================================================
-;; ;; DDSKK（超快適日本語入力）– Emacs 28 完全対応・use-package 版
+;; ;; DDSKK（超快適日本語入力）? Emacs 28 完全対応・use-package 版
 ;; ;; ==============================================================
 
 ;; ;; 1. まず SKK の辞書を自動ダウンロード（初回だけ）
@@ -634,7 +714,7 @@
 
 
 ;; ==============================================================
-;; persistent-scratch（scratchバッファを永続化）– use-package 版
+;; persistent-scratch（scratchバッファを永続化）? use-package 版
 ;; ==============================================================
 
 (use-package persistent-scratch
@@ -719,7 +799,7 @@
   (setq racket-program "C:\\users\\mevius\\Racket\\Racket.exe")
   )
 
-;; 
+;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; tree-sitter config
