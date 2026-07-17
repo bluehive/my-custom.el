@@ -877,9 +877,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; scheme , lisp 系
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
 ;;; parEdit
-
-
 ;; Prevent parenthesis imbalance
 (use-package paredit
   :commands paredit-mode
@@ -936,6 +937,30 @@
 (require 'quelpa-use-package)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; racket-mode
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package racket-mode
+  :ensure t
+  :mode ("\\.rkt\\'" . racket-mode)
+  :commands (racket-mode
+             racket-repl
+             racket-run
+             racket-xp-mode)
+  :hook
+  ;; 編集バッファで XP（定義ジャンプ・エラー表示など）を有効化
+  (racket-mode . racket-xp-mode)
+  ;; 好みで: paredit を Racket にも（既存の paredit 設定と揃える）
+  ;; (racket-mode . paredit-mode)
+  :config
+  ;; システムにインストール済みの racket を明示（任意・通常は PATH で足りる）
+  (setq racket-program "/usr/bin/racket")
+  ;; 初回だけ: バックエンド用の Racket パッケージを入れる
+  ;; M-x racket-mode-start-faster  または
+  ;; M-x racket-xp-mode 後に必要なら racket-mode の案内に従う
+  )
 ;;;;;;;;;;;;;
 ;; https://github.com/DEADB17/ob-racket/blob/master/ob-racket.el
 ;; (add-to-list 'load-path "~/.minimal-emacs.d/elpa/ob-racket.el")
