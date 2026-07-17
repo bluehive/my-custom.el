@@ -1,10 +1,11 @@
-;;; FILENAME.el --- DESCRIPTION -*- no-byte-compile: t; lexical-binding: t; -*-
+;;; post-init.el --- DESCRIPTION -*- no-byte-compile: t; lexical-binding: t; -*-
 
-;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md
+;; https://github.com/jamescherti/minimal-emacs.d
 
 
-;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md#optimization-native-compilation
-;; compile-angel.el を用いて、Elisp コードのバイトコンパイルおよびネイティブコンパイルを自動化
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;; Native compilation enhances Emacs performance by converting Elisp code into
 ;; native machine code, resulting in faster execution and improved
 ;; responsiveness.
@@ -45,14 +46,10 @@
   (compile-angel-on-load-mode 1))
 
 
-;; MELPA is required for magit, forge, and many other modern packages.
-;; We add it early (before any :ensure t blocks) so that use-package can find them.
-;; NonGNU was already added later in the file for eat/quelpa.
-(add-to-list 'package-archives
-             '("melpa" . "https://melpa.org/packages/") t)
 
 
-;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md#file-management--history-recentf-savehist-saveplace-and-auto-revert
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;; Auto-revert in Emacs is a feature that automatically updates the
 ;; contents of a buffer to reflect changes made to the underlying file
 ;; on disk.
@@ -64,11 +61,8 @@
   (setq auto-revert-remote-files nil)
   (setq auto-revert-use-notify t)
   (setq auto-revert-avoid-polling nil)
-  :config
   (global-auto-revert-mode 1))
 
-
-;; ファイル管理・履歴機能の有効化
 ;; Recentf is an Emacs package that maintains a list of recently
 ;; accessed files, making it easier to reopen files you have worked on
 ;; recently.
@@ -83,15 +77,15 @@
               "COMMIT_EDITMSG\\'"
               "\\.\\(?:gz\\|gif\\|svg\\|png\\|jpe?g\\|bmp\\|xpm\\)$"
               "-autoloads\\.el$" "autoload\\.el$"))
+  ;; Enable `recentf-mode'
+  (recentf-mode 1)
 
   :config
   ;; A cleanup depth of -90 ensures that `recentf-cleanup' runs before
   ;; `recentf-save-list', allowing stale entries to be removed before the list
   ;; is saved by `recentf-save-list', which is automatically added to
   ;; `kill-emacs-hook' by `recentf-mode'.
-  (add-hook 'kill-emacs-hook #'recentf-cleanup -90)
-  ;; Enable `recentf-mode'
-  (recentf-mode 1))
+  (add-hook 'kill-emacs-hook #'recentf-cleanup -90))
 
 ;; savehist is an Emacs feature that preserves the minibuffer history between
 ;; sessions. It saves the history of inputs in the minibuffer, such as commands,
@@ -102,7 +96,6 @@
   :init
   (setq history-length 300)
   (setq savehist-autosave-interval 600)
-  :config
   (savehist-mode 1))
 
 ;; save-place-mode enables Emacs to remember the last location within a file
@@ -112,13 +105,11 @@
   :ensure nil
   :init
   (setq save-place-limit 400)
-  :config
   (save-place-mode 1))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md#safety-auto-save
-;; auto-save-visited-mode を導入し、アイドル時の自動保存を有効
 ;; Enable `auto-save-mode' to prevent data loss. Use `recover-file' or
 ;; `recover-session' to restore unsaved changes.
 (setq auto-save-default t)
@@ -130,22 +121,235 @@
 (setq auto-save-timeout 30)
 
 
-;; When auto-save-visited-mode is enabled, Emacs will auto-save file-visiting
-;; buffers after a certain amount of idle time if the user forgets to save it
-;; with save-buffer or C-x s for example.
-;;
-;; This is different from auto-save-mode: auto-save-mode periodically saves
-;; all modified buffers, creating backup files, including those not associated
-;; with a file, while auto-save-visited-mode only saves file-visiting buffers
-;; after a period of idle time, directly saving to the file itself without
-;; creating backup files.
-(setq auto-save-visited-interval 5)   ; Save after 5 seconds if inactivity
-(auto-save-visited-mode 1)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 
+;; Corfu enhances in-buffer completion by displaying a compact popup with
+;; current candidates, positioned either below or above the point. Candidates
+;; can be selected by navigating up or down.
+(use-package corfu
+  :custom
+  ;; Hide commands in M-x which do not apply to the current mode.
+  (read-extended-command-predicate #'command-completion-default-include-p)
+  ;; Disable Ispell completion function. As an alternative try `cape-dict'.
+  (text-mode-ispell-word-completion nil)
+  (tab-always-indent 'complete)
 
-;; easysession はウィンドウ構成、タブバー、バッファナローイング、Dired（ファイル管理）まで含めた高度な復元が可能である。
+  :init
+  (global-corfu-mode 1))
+
+;; Cape, or Completion At Point Extensions, extends the capabilities of
+;; in-buffer completion. It integrates with Corfu or the default completion UI,
+;; by providing additional backends through completion-at-point-functions.
+(use-package cape
+  :commands (cape-dabbrev cape-file cape-elisp-block)
+  :bind ("C-c p" . cape-prefix-map)
+  :init
+  ;; Add to the global default value of `completion-at-point-functions' which is
+  ;; used by `completion-at-point'.
+  (add-hook 'completion-at-point-functions #'cape-dabbrev)
+  (add-hook 'completion-at-point-functions #'cape-file)
+  (add-hook 'completion-at-point-functions #'cape-elisp-block))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Vertico provides a vertical completion interface, making it easier to
+;; navigate and select from completion candidates (e.g., when `M-x` is pressed).
+(use-package vertico
+  ;; :custom
+  ;; (vertico-scroll-margin 0) ;; Different scroll margin
+  ;; (vertico-count 20) ;; Show more candidates
+  ;; (vertico-resize t) ;; Grow and shrink the Vertico minibuffer
+  ;; (vertico-cycle t) ;; Enable cycling for `vertico-next/previous'
+  :init
+  (vertico-mode 1))
+
+;; Vertico leverages Orderless' flexible matching capabilities, allowing users
+;; to input multiple patterns separated by spaces, which Orderless then
+;; matches in any order against the candidates.
+(use-package orderless
+  :custom
+  (completion-styles '(orderless basic))
+  (completion-category-overrides '((file (styles partial-completion))))
+  ;; Emacs 31: partial-completion behaves like substring
+  (completion-pcm-leading-wildcard t))
+
+;; Marginalia allows Embark to offer you preconfigured actions in more contexts.
+;; In addition to that, Marginalia also enhances Vertico by adding rich
+;; annotations to the completion candidates displayed in Vertico's interface.
+(use-package marginalia
+  ;; Bind `marginalia-cycle' locally in the minibuffer.  To make the binding
+  ;; available in the *Completions* buffer, add it to the
+  ;; `completion-list-mode-map'.
+  :bind (:map minibuffer-local-map
+         ("M-A" . marginalia-cycle))
+
+  ;; The :init section is always executed.
+  :init
+
+  ;; Marginalia must be activated in the :init section of use-package such that
+  ;; the mode gets enabled right away. Note that this forces loading the
+  ;; package.
+  (marginalia-mode 1))
+
+;; Embark integrates with Consult and Vertico to provide context-sensitive
+;; actions and quick access to commands based on the current selection, further
+;; improving user efficiency and workflow within Emacs. Together, they create a
+;; cohesive environment for managing completions and interactions.
+(use-package embark
+  :bind
+  (("C-." . embark-act)         ;; pick some comfortable binding
+   ("C-;" . embark-dwim)        ;; good alternative: M-.
+   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
+
+  :init
+
+  ;; Optionally replace the key help with a completing-read interface
+  (setq prefix-help-command #'embark-prefix-help-command)
+
+  ;; Show the Embark target at point via Eldoc. You may adjust the
+  ;; Eldoc strategy, if you want to see the documentation from
+  ;; multiple providers. Beware that using this can be a little
+  ;; jarring since the message shown in the minibuffer can be more
+  ;; than one line, causing the modeline to move up and down:
+
+  ;; (add-hook 'eldoc-documentation-functions #'embark-eldoc-first-target)
+  ;; (setq eldoc-documentation-strategy #'eldoc-documentation-compose-eagerly)
+
+  ;; Add Embark to the mouse context menu. Also enable `context-menu-mode'.
+  ;; (context-menu-mode 1)
+  ;; (add-hook 'context-menu-functions #'embark-context-menu 100)
+
+  :config
+  ;; Hide the mode line of the Embark live/completions buffers
+  (add-to-list 'display-buffer-alist
+               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+                 nil
+                 (window-parameters (mode-line-format . none)))))
+
+(use-package embark-consult)
+
+;; Consult offers a suite of commands for efficient searching, previewing, and
+;; interacting with buffers, file contents, and more, improving various tasks.
+
+(use-package consult
+  ;; Replace bindings. Lazily loaded by `use-package'.
+  :bind (;; C-c bindings in `mode-specific-map'
+         ("C-c M-x" . consult-mode-command)
+         ("C-c h" . consult-history)
+         ("C-c k" . consult-kmacro)
+         ("C-c m" . consult-man)
+         ("C-c i" . consult-info)
+         ([remap Info-search] . consult-info)
+         ;; C-x bindings in `ctl-x-map'
+         ("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command
+         ("C-x b" . consult-buffer)                ;; orig. switch-to-buffer
+         ("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
+         ("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
+         ("C-x t b" . consult-buffer-other-tab)    ;; orig. switch-to-buffer-other-tab
+         ("C-x r b" . consult-bookmark)            ;; orig. bookmark-jump
+         ("C-x p b" . consult-project-buffer)      ;; orig. project-switch-to-buffer
+         ;; Custom M-# bindings for fast register access
+         ("M-#" . consult-register-load)
+         ("M-'" . consult-register-store)          ;; orig. abbrev-prefix-mark (unrelated)
+         ("C-M-#" . consult-register)
+         ;; Other custom bindings
+         ("M-y" . consult-yank-pop)                ;; orig. yank-pop
+         ;; M-g bindings in `goto-map'
+         ("M-g e" . consult-compile-error)
+         ("M-g r" . consult-grep-match)
+         ("M-g f" . consult-flymake)               ;; Alternative: consult-flycheck
+         ("M-g g" . consult-goto-line)             ;; orig. goto-line
+         ("M-g M-g" . consult-goto-line)           ;; orig. goto-line
+         ("M-g o" . consult-outline)               ;; Alternative: consult-org-heading
+         ("M-g m" . consult-mark)
+         ("M-g k" . consult-global-mark)
+         ("M-g i" . consult-imenu)
+         ("M-g I" . consult-imenu-multi)
+         ;; M-s bindings in `search-map'
+         ("M-s d" . consult-find)                  ;; Alternative: consult-fd
+         ("M-s c" . consult-locate)
+         ("M-s g" . consult-grep)
+         ("M-s G" . consult-git-grep)
+         ("M-s r" . consult-ripgrep)
+         ("M-s l" . consult-line)
+         ("M-s L" . consult-line-multi)
+         ("M-s k" . consult-keep-lines)
+         ("M-s u" . consult-focus-lines)
+         ;; Isearch integration
+         ("M-s e" . consult-isearch-history)
+         :map isearch-mode-map
+         ("M-e" . consult-isearch-history)         ;; orig. isearch-edit-string
+         ("M-s e" . consult-isearch-history)       ;; orig. isearch-edit-string
+         ("M-s l" . consult-line)                  ;; needed by consult-line to detect isearch
+         ("M-s L" . consult-line-multi)            ;; needed by consult-line to detect isearch
+         ;; Minibuffer history
+         :map minibuffer-local-map
+         ("M-s" . consult-history)                 ;; orig. next-matching-history-element
+         ("M-r" . consult-history))                ;; orig. previous-matching-history-element
+
+  ;; The :init configuration is always executed (Not lazy)
+  :init
+
+  ;; Tweak the register preview for `consult-register-load',
+  ;; `consult-register-store' and the built-in commands.  This improves the
+  ;; register formatting, adds thin separator lines, register sorting and hides
+  ;; the window mode line.
+  (advice-add #'register-preview :override #'consult-register-window)
+  (setq register-preview-delay 0.5)
+
+  ;; Use Consult to select xref locations with preview
+  (setq xref-show-xrefs-function #'consult-xref
+        xref-show-definitions-function #'consult-xref)
+
+  ;; Configure other variables and modes in the :config section,
+  ;; after lazily loading the package.
+  :config
+
+  ;; Optionally configure preview. The default value
+  ;; is 'any, such that any key triggers the preview.
+  ;; (setq consult-preview-key 'any)
+  ;; (setq consult-preview-key "M-.")
+  ;; (setq consult-preview-key '("S-<down>" "S-<up>"))
+  ;; For some commands and buffer sources it is useful to configure the
+  ;; :preview-key on a per-command basis using the `consult-customize' macro.
+  (consult-customize
+   consult-theme :preview-key '(:debounce 0.2 any)
+   consult-ripgrep consult-git-grep consult-grep consult-man
+   consult-bookmark consult-recent-file consult-xref
+   consult-source-bookmark consult-source-file-register
+   consult-source-recent-file consult-source-project-recent-file
+   ;; :preview-key "M-."
+   :preview-key '(:debounce 0.4 any))
+
+  ;; Optionally configure the narrowing key.
+  ;; Both < and C-+ work reasonably well.
+  (setq consult-narrow-key "<") ;; "C-+"
+
+  ;; Optionally make narrowing help available in the minibuffer.
+  ;; You may want to use `embark-prefix-help-command' or which-key instead.
+  ;; (keymap-set consult-narrow-map (concat consult-narrow-key " ?") #'consult-narrow-help)
+  )
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; theme blue
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(use-package tomorrow-night-deepblue-theme
+  :ensure t
+  :config
+  ;; Disable all themes and load the Tomorrow Night Deep Blue theme
+  (mapc #'disable-theme custom-enabled-themes)
+  ;; Load the tomorrow-night-deepblue theme
+  (load-theme 'tomorrow-night-deepblue t))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;; The easysession Emacs package is a session manager for Emacs that can persist
 ;; and restore file editing buffers, indirect buffers/clones, Dired buffers,
 ;; windows/splits, the built-in tab-bar (including tabs, their buffers, and
@@ -159,7 +363,7 @@
   :config
   ;; Key mappings
   (global-set-key (kbd "C-c sl") #'easysession-switch-to) ; Load session
-  (global-set-key (kbd "C-c ss") #'easysession-save)      ; Save session
+  (global-set-key (kbd "C-c ss") #'easysession-save) ; Save session
   (global-set-key (kbd "C-c sL") #'easysession-switch-to-and-restore-geometry)
   (global-set-key (kbd "C-c sr") #'easysession-rename)
   (global-set-key (kbd "C-c sR") #'easysession-reset)
@@ -191,26 +395,9 @@
   (easysession-setup))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; ;; format-all ? 自動フォーマット（clang-format など使用）
-;; ;; ====================
-
-;; (use-package format-all
-;;   :bind (:map prog-mode-map
-;;               ("C-c f" . format-all-buffer))  ;; バッファ全体フォーマット
-;;   :hook ((c-mode . format-all-mode)  ;; C モードで自動有効
-;;          (prog-mode . format-all-mode))  ;; 保存時自動フォーマット（オプション）
-;;   :config
-;;   ;; C 用のフォーマッターを指定（デフォルト: clang-format）
-;;   (setq-default format-all-formatters
-;;                 '(("C" (clang-format))))  ;; astyle に変えたい場合: (astyle "--mode=c")
-
-;;   ;; 保存時に自動フォーマット（有効化したい場合）
-;;   ;; (add-hook 'before-save-hook 'format-all-buffer nil t)
-;;   )
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md#configuring-markdown-mode-eg-readmemd-syntax
 ;; The markdown-mode package provides a major mode for Emacs for syntax
 ;; highlighting, editing commands, and preview support for Markdown documents.
 ;; It supports core Markdown syntax as well as extensions like GitHub Flavored
@@ -228,29 +415,760 @@
         ("C-c C-e" . markdown-do)))
 
 
-;;; buffer-terminator を導入し、使用していないバッファを自動的にクリーンアップ
-(use-package buffer-terminator
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Intelligent code folding by using the structural understanding of the
+;; built-in tree-sitter parser. Unlike traditional folding methods that rely on
+;; regular expressions or indentation, treesit-fold uses the actual syntax tree
+;; of the code to accurately identify foldable regions such as functions,
+;; classes, comments, and documentation strings. This allows for faster and more
+;; precise folding behavior that respects the grammar of the programming
+;; language, ensuring that fold boundaries are always syntactically correct even
+;; in complex or nested code structures.
+(use-package treesit-fold
+  :commands (treesit-fold-close
+             treesit-fold-close-all
+             treesit-fold-open
+             treesit-fold-toggle
+             treesit-fold-open-all
+             treesit-fold-mode
+             global-treesit-fold-mode
+             treesit-fold-open-recursively
+             treesit-fold-line-comment-mode)
+
   :custom
-  ;; Enable/Disable verbose mode to log buffer cleanup events
-  (buffer-terminator-verbose nil)
-
-  ;; Set the inactivity timeout (in seconds) after which buffers are considered
-  ;; inactive (default is 30 minutes):
-  (buffer-terminator-inactivity-timeout (* 30 60)) ; 30 minutes
-
-  ;; Define how frequently the cleanup process should run (default is every 10
-  ;; minutes):
-  (buffer-terminator-interval (* 10 60)) ; 10 minutes
+  (treesit-fold-line-count-show t)
+  (treesit-fold-line-count-format " ▼")
 
   :config
-  (buffer-terminator-mode 1))
+  (set-face-attribute 'treesit-fold-replacement-face nil
+                      :foreground "#808080"
+                      :box nil
+                      :weight 'bold))
+
+;; A few examples
+(add-hook 'c-ts-mode-hook #'treesit-fold-mode)
+(add-hook 'c++-ts-mode-hook #'treesit-fold-mode)
+(add-hook 'php-ts-mode-hook #'treesit-fold-mode)
+(add-hook 'css-ts-mode-hook #'treesit-fold-mode)
+(add-hook 'html-ts-mode-hook #'treesit-fold-mode)
+(add-hook 'bash-ts-mode-hook #'treesit-fold-mode)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; The official collection of snippets for yasnippet.
+(use-package yasnippet-snippets)
+
+;; YASnippet is a template system designed that enhances text editing by
+;; enabling users to define and use snippets. When a user types a short
+;; abbreviation, YASnippet automatically expands it into a full template, which
+;; can include placeholders, fields, and dynamic content.
+(use-package yasnippet
+  :after yasnippet-snippets
+  :custom
+  (yas-also-auto-indent-first-line t)  ; Indent first line of snippet
+  (yas-also-indent-empty-lines t)
+  (yas-snippet-revival nil)  ; Setting this to t causes issues with undo
+  (yas-wrap-around-region nil) ; Do not wrap region when expanding snippets
+  (yas-indent-line 'fixed) ; Do not auto-indent snippet content
+  ;; (yas-triggers-in-field nil)  ; Disable nested snippet expansion
+  ;; (yas-prompt-functions '(yas-no-prompt))  ; No prompt for snippet choices
+
+  :init
+  ;; Suppress verbose messages
+  (setq yas-verbosity 0)
+  (yas-global-mode 1))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; The stripspace Emacs package provides stripspace-local-mode, a minor mode
+;; that automatically removes trailing whitespace and blank lines at the end of
+;; the buffer when saving.
+(use-package stripspace
+  :commands stripspace-local-mode
+
+  ;; Enable for prog-mode-hook, text-mode-hook, conf-mode-hook
+  :hook ((prog-mode . stripspace-local-mode)
+         (text-mode . stripspace-local-mode)
+         (conf-mode . stripspace-local-mode))
+
+  :custom
+  ;; The `stripspace-only-if-initially-clean' option:
+  ;; - nil to always delete trailing whitespace.
+  ;; - Non-nil to only delete whitespace when the buffer is clean initially.
+  ;; (The initial cleanliness check is performed when `stripspace-local-mode'
+  ;; is enabled.)
+  (stripspace-only-if-initially-clean nil)
+
+  ;; Enabling `stripspace-restore-column' preserves the cursor's column position
+  ;; even after stripping spaces. This is useful in scenarios where you add
+  ;; extra spaces and then save the file. Although the spaces are removed in the
+  ;; saved file, the cursor remains in the same position, ensuring a consistent
+  ;; editing experience without affecting cursor placement.
+  (stripspace-restore-column t))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; A file and project explorer for Emacs that displays a structured tree
+;; layout, similar to file browsers in modern IDEs. It functions as a sidebar
+;; in the left window, providing a persistent view of files, projects, and
+;; other elements.
+(use-package treemacs
+  :commands (treemacs
+             treemacs-select-window
+             treemacs-delete-other-windows
+             treemacs-select-directory
+             treemacs-bookmark
+             treemacs-find-file
+             treemacs-find-tag)
+
+  :bind
+  (:map global-map
+        ("M-0"       . treemacs-select-window)
+        ("C-x t 1"   . treemacs-delete-other-windows)
+        ("C-x t t"   . treemacs)
+        ("C-x t d"   . treemacs-select-directory)
+        ("C-x t B"   . treemacs-bookmark)
+        ("C-x t C-t" . treemacs-find-file)
+        ("C-x t M-t" . treemacs-find-tag))
+
+  :init
+  (with-eval-after-load 'winum
+    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
+
+  :config
+  (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
+        treemacs-deferred-git-apply-delay        0.5
+        treemacs-directory-name-transformer      #'identity
+        treemacs-display-in-side-window          t
+        treemacs-eldoc-display                   'simple
+        treemacs-file-event-delay                2000
+        treemacs-file-extension-regex            treemacs-last-period-regex-value
+        treemacs-file-follow-delay               0.2
+        treemacs-file-name-transformer           #'identity
+        treemacs-follow-after-init               t
+        treemacs-expand-after-init               t
+        treemacs-find-workspace-method           'find-for-file-or-pick-first
+        treemacs-git-command-pipe                ""
+        treemacs-goto-tag-strategy               'refetch-index
+        treemacs-header-scroll-indicators        '(nil . "^^^^^^")
+        treemacs-hide-dot-git-directory          t
+        treemacs-indentation                     2
+        treemacs-indentation-string              " "
+        treemacs-is-never-other-window           nil
+        treemacs-max-git-entries                 5000
+        treemacs-missing-project-action          'ask
+        treemacs-move-files-by-mouse-dragging    t
+        treemacs-move-forward-on-expand          nil
+        treemacs-no-png-images                   nil
+        treemacs-no-delete-other-windows         t
+        treemacs-project-follow-cleanup          nil
+        treemacs-persist-file                    (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
+        treemacs-position                        'left
+        treemacs-read-string-input               'from-child-frame
+        treemacs-recenter-distance               0.1
+        treemacs-recenter-after-file-follow      nil
+        treemacs-recenter-after-tag-follow       nil
+        treemacs-recenter-after-project-jump     'always
+        treemacs-recenter-after-project-expand   'on-distance
+        treemacs-litter-directories              '("/node_modules" "/.venv" "/.cask")
+        treemacs-project-follow-into-home        nil
+        treemacs-show-cursor                     nil
+        treemacs-show-hidden-files               t
+        treemacs-silent-filewatch                nil
+        treemacs-silent-refresh                  nil
+        treemacs-sorting                         'alphabetic-asc
+        treemacs-select-when-already-in-treemacs 'move-back
+        treemacs-space-between-root-nodes        t
+        treemacs-tag-follow-cleanup              t
+        treemacs-tag-follow-delay                1.5
+        treemacs-text-scale                      nil
+        treemacs-user-mode-line-format           nil
+        treemacs-user-header-line-format         nil
+        treemacs-wide-toggle-width               70
+        treemacs-width                           35
+        treemacs-width-increment                 1
+        treemacs-width-is-initially-locked       t
+        treemacs-workspace-switch-cleanup        nil)
+
+  ;; The default width and height of the icons is 22 pixels. If you are
+  ;; using a Hi-DPI display, uncomment this to double the icon size.
+  ;; (treemacs-resize-icons 44)
+
+  (treemacs-follow-mode t)
+  (treemacs-filewatch-mode t)
+  (treemacs-fringe-indicator-mode 'always)
+
+  ;;(when treemacs-python-executable
+  ;;  (treemacs-git-commit-diff-mode t))
+
+  (pcase (cons (not (null (executable-find "git")))
+               (not (null treemacs-python-executable)))
+    (`(t . t)
+     (treemacs-git-mode 'deferred))
+    (`(t . _)
+     (treemacs-git-mode 'simple)))
+
+  (treemacs-hide-gitignored-files-mode nil))
+
+;; (use-package treemacs-evil
+;;   :after (treemacs evil))
+;;
+;; (use-package treemacs-icons-dired
+;;   :hook (dired-mode . treemacs-icons-dired-enable-once))
+;;
+;; (use-package treemacs-tab-bar  ; treemacs-tab-bar if you use tab-bar-mode
+;;   :after (treemacs)
+;;   :config (treemacs-set-scope-type 'Tabs))
+;;
+;; (treemacs-start-on-boot)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; Helpful is an alternative to the built-in Emacs help that provides much more
+;; contextual information.
+(use-package helpful
+  :commands (helpful-callable
+             helpful-variable
+             helpful-key
+             helpful-command
+             helpful-at-point
+             helpful-function)
+  :bind
+  ([remap describe-command] . helpful-command)
+  ([remap describe-function] . helpful-callable)
+  ([remap describe-key] . helpful-key)
+  ([remap describe-symbol] . helpful-symbol)
+  ([remap describe-variable] . helpful-variable)
+  :custom
+  (helpful-max-buffers 7))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; ====================
+;; avy ? 高速ジャンプ
+;; ====================
+
+(use-package avy
+  :ensure t
+  :bind
+  (("C-:" . avy-goto-char-timer)     ; 文字を2文字入力でジャンプ
+   ("C-'" . avy-goto-char)           ; 1文字でジャンプ（候補多いとき便利）
+   ("M-g M-g" . avy-goto-line)       ; 行ジャンプ（標準の goto-line を置き換え）
+   ("M-g g" . avy-goto-line)         ; 同上
+   ;; ("C-c j" . avy-goto-word-1)       ; 単語の頭文字でジャンプ
+   ;; ("C-c C-j" . avy-goto-subword-1)  ; サブワード（camelCase対応）
+   ("s-j" . avy-goto-char-timer))    ; Super + j でグローバルジャンプ（GUI/macOS）
+
+  :init
+  ;; 起動時に少し待機（タイマー入力用）
+  (setq avy-timeout-seconds 0.3)
+
+  :config
+  ;; 見た目をカスタマイズ
+  (setq avy-background t)               ; 背景を暗くして目立つ
+  (setq avy-style 'at-full)             ; 候補を全画面に表示
+  (setq avy-all-windows t)              ; すべてのウィンドウを対象（C-u で切り替え可）
+
+  ;; キーを視覚的に強調
+  (set-face-attribute 'avy-lead-face nil
+                      :foreground "white" :background "red" :weight 'bold)
+  (set-face-attribute 'avy-lead-face-0 nil
+                      :foreground "white" :background "blue" :weight 'bold)
+  (set-face-attribute 'avy-lead-face-1 nil
+                      :foreground "white" :background "green" :weight 'bold)
+
+  ;; 行ジャンプ時に行頭ではなく行中央にジャンプ
+  (setq avy-goto-line-function #'avy-goto-line-below)
+
+  ;; 日本語環境でも快適に（全角対応）
+  (setq avy-dispatch-keys '(?a ?b ?s ?z ?d ?f ?g ?h ?j ?l ?q ?w ?e ?r ?u ?i ?p))
+
+  ;; AvyとEmbarkの直接連携（Anyアクション）の追加
+  (defun avy-action-embark (pt)
+  (unwind-protect
+      (save-excursion
+        (goto-char pt)
+        (embark-act))
+    (select-window
+     (cdr (ringref avy-ring 0))))
+  t)
+
+;; ディスパッチキー 'o' でEmbarkを呼び出す
+(setf (alist-get ?o avy-dispatch-alist) 'avy-action-embark)
+)
+
+
+;; (use-package avy
+;;   :commands (avy-goto-char
+;;              avy-goto-char-2
+;;              avy-next)
+;;   :init
+;;   (global-set-key (kbd "C-'") 'avy-goto-char-2))
 
 
 
-;; ------------------------------
-;; 5. 既存の最強設定（ace-window, projectile, lsp-uiなどはそのまま）
-;; ------------------------------
-;; ← 前のコードの ace-window / projectile / lsp-ui / flycheck はそのまま使います
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; etc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;; Enable automatic insertion and management of matching pairs of characters
+;;; (e.g., (), {}, "") globally using `electric-pair-mode'.
+(use-package elec-pair
+  :ensure nil
+  :init
+  (electric-pair-mode 1))
+
+;; Set the fringes to match the pixel height of a character. This ensures the
+;; fringe is wide enough, scaling dynamically with the current font size.
+(fringe-mode (frame-char-width))
+
+;; When Delete Selection mode is enabled, typed text replaces the selection
+;; if the selection is active.
+(delete-selection-mode 1)
+
+;; Display the current line and column numbers in the mode line
+(setq line-number-mode t)
+(setq column-number-mode t)
+(setq mode-line-position-column-line-format '("%l:%C"))
+
+;; Display of line numbers in the buffer:
+(setq-default display-line-numbers-type 'relative)
+(dolist (hook '(prog-mode-hook text-mode-hook conf-mode-hook))
+  (add-hook hook #'display-line-numbers-mode))
+
+;; Set the maximum level of syntax highlighting for Tree-sitter modes
+(setq treesit-font-lock-level 4)
+
+(use-package which-key
+  :ensure t   ;;; fix nil -> t 　2026-07-17
+  :custom
+  (which-key-idle-delay 1.5)
+  (which-key-idle-secondary-delay 0.25)
+  (which-key-add-column-padding 1)
+  (which-key-max-description-length 40)
+  :init
+  (which-key-mode 1))
+
+(unless (and (eq window-system 'mac)
+             (bound-and-true-p mac-carbon-version-string))
+  ;; Enables `pixel-scroll-precision-mode' on all operating systems and Emacs
+  ;; versions, except for emacs-mac.
+  ;;
+  ;; Enabling `pixel-scroll-precision-mode' is unnecessary with emacs-mac, as
+  ;; this version of Emacs natively supports smooth scrolling.
+  ;; https://bitbucket.org/mituharu/emacs-mac/commits/65c6c96f27afa446df6f9d8eff63f9cc012cc738
+  (setq pixel-scroll-precision-use-momentum nil) ; Precise/smoother scrolling
+  (pixel-scroll-precision-mode 1))
+
+;; Display the time in the modeline
+(display-time-mode 1)
+
+;; Paren match highlighting
+(show-paren-mode 1)
+
+;; Track changes in the window configuration, allowing undoing actions such as
+;; closing windows.
+(setq winner-boring-buffers '("*Completions*"
+                                "*Minibuf-0*"
+                                "*Minibuf-1*"
+                                "*Minibuf-2*"
+                                "*Minibuf-3*"
+                                "*Minibuf-4*"
+                                "*Compile-Log*"
+                                "*inferior-lisp*"
+                                "*Fuzzy Completions*"
+                                "*Apropos*"
+                                "*Help*"
+                                "*cvs*"
+                                "*Buffer List*"
+                                "*Ibuffer*"
+                                "*esh command on file*"))
+(winner-mode 1)
+
+(use-package uniquify
+  :ensure nil
+  :custom
+  (uniquify-buffer-name-style 'reverse)
+  (uniquify-separator "•")
+  (uniquify-after-kill-buffer-p t))
+
+;; Window dividers separate windows visually. Window dividers are bars that can
+;; be dragged with the mouse, thus allowing you to easily resize adjacent
+;; windows.
+;; https://www.gnu.org/software/emacs/manual/html_node/emacs/Window-Dividers.html
+(window-divider-mode 1)
+
+;; Constrain vertical cursor movement to lines within the buffer
+(setq dired-movement-style 'bounded-files)
+
+;; Dired buffers: Automatically hide file details (permissions, size,
+;; modification date, etc.) and all the files in the `dired-omit-files' regular
+;; expression for a cleaner display.
+(add-hook 'dired-mode-hook #'dired-hide-details-mode)
+
+;; Hide files from dired
+(setq dired-omit-files (concat "\\`[.]\\'"
+                               "\\|\\(?:\\.js\\)?\\.meta\\'"
+                               "\\|\\.\\(?:elc|a\\|o\\|pyc\\|pyo\\|swp\\|class\\)\\'"
+                               "\\|^\\.DS_Store\\'"
+                               "\\|^\\.\\(?:svn\\|git\\)\\'"
+                               "\\|^\\.ccls-cache\\'"
+                               "\\|^__pycache__\\'"
+                               "\\|^\\.project\\(?:ile\\)?\\'"
+                               "\\|^flycheck_.*"
+                               "\\|^flymake_.*"))
+(add-hook 'dired-mode-hook #'dired-omit-mode)
+
+;; dired: Group directories first
+(with-eval-after-load 'dired
+  (let ((args "--group-directories-first -ahlv"))
+    (when (or (eq system-type 'darwin) (eq system-type 'berkeley-unix))
+      (if-let* ((gls (executable-find "gls")))
+          (setq insert-directory-program gls)
+        (setq args nil)))
+    (when args
+      (setq dired-listing-switches args))))
+
+;; Enables visual indication of minibuffer recursion depth after initialization.
+(minibuffer-depth-indicate-mode 1)
+
+;; Configure Emacs to ask for confirmation before exiting
+(setq confirm-kill-emacs 'y-or-n-p)
+
+;; Enabled backups save your changes to a file intermittently
+(setq make-backup-files t)
+(setq vc-make-backup-files t)
+(setq kept-old-versions 10)
+(setq kept-new-versions 10)
+
+;; When tooltip-mode is enabled, certain UI elements (e.g., help text,
+;; mouse-hover hints) will appear as native system tooltips (pop-up windows),
+;; rather than as echo area messages. This is useful in graphical Emacs sessions
+;; where tooltips can appear near the cursor.
+(setq tooltip-hide-delay 20)    ; Time in seconds before a tooltip disappears (default: 10)
+(setq tooltip-delay 0.4)        ; Delay before showing a tooltip after mouse hover (default: 0.7)
+(setq tooltip-short-delay 0.08) ; Delay before showing a short tooltip (Default: 0.1)
+(tooltip-mode 1)
+
+;; Keep unmodified buffers A/B/C at session end
+(setq ediff-keep-variants t)
+
+;; Automatically apply verified, safe file-local variables. This eliminates
+;; confirmation prompts when loading files, while ensuring that unauthorized or
+;; risky configurations are silently ignored.
+(setq enable-local-variables :safe)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; scheme , lisp 系
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; parEdit
+
+
+;; Prevent parenthesis imbalance
+(use-package paredit
+  :commands paredit-mode
+  :hook
+  (emacs-lisp-mode . paredit-mode)
+  :config
+  (define-key paredit-mode-map (kbd "RET") nil))
+
+;; For paredit+Evil mode users: enhances paredit with Evil mode compatibility
+;; --------------------------------------------------------------------------
+;; (use-package enhanced-evil-paredit
+;;   :commands enhanced-evil-paredit-mode
+;;   :hook
+;;   (paredit-mode . enhanced-evil-paredit-mode))
+
+;; Displays visible indicators for page breaks
+(use-package page-break-lines
+  :commands (page-break-lines-mode
+             global-page-break-lines-mode)
+  :hook
+  (emacs-lisp-mode . page-break-lines-mode))
+
+;; Provides functions to find references to functions, macros, variables,
+;; special forms, and symbols in Emacs Lisp
+(use-package elisp-refs
+  :commands (elisp-refs-function
+             elisp-refs-macro
+             elisp-refs-variable
+             elisp-refs-special
+             elisp-refs-symbol))
+
+
+;; (use-package paredit
+;;   :ensure t
+;;   :config
+;;   (autoload 'enable-paredit-mode "paredit" "Turn on pseudo-structural editing of Lisp code." t)
+;;   (add-hook 'emacs-lisp-mode-hook       #'enable-paredit-mode)
+;;   (add-hook 'eval-expression-minibuffer-setup-hook #'enable-paredit-mode)
+;;   (add-hook 'ielm-mode-hook             #'enable-paredit-mode)
+;;   (add-hook 'lisp-mode-hook             #'enable-paredit-mode)
+;;   (add-hook 'lisp-interaction-mode-hook #'enable-paredit-mode)
+;;   (add-hook 'scheme-mode-hook           #'enable-paredit-mode)
+;;   ;; slime repl
+;;   (add-hook 'slime-repl-mode-hook (lambda () (paredit-mode +1)))
+
+;;;;;;;;;;;;;;;;;;;;消さない　！　;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; github
+
+(unless (package-installed-p 'quelpa)
+  (package-refresh-contents)
+  (package-install 'quelpa))
+(unless (package-installed-p 'quelpa-use-package)
+  (package-refresh-contents)
+  (package-install 'quelpa-use-package))
+(require 'quelpa-use-package)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;
+;; https://github.com/DEADB17/ob-racket/blob/master/ob-racket.el
+;; (add-to-list 'load-path "~/.minimal-emacs.d/elpa/ob-racket.el")
+;; Set path to racket interpreter
+(setq org-babel-command:racket "/usr/bin/racket")
+;; (require 'ob-racket)
+
+(use-package ob-racket
+  :ensure nil
+  :quelpa (ob-racket :fetcher github :repo "xchrishawk/ob-racket")
+  :after org
+  :pin manual
+  :config
+  (add-to-list 'org-babel-load-languages '(racket . t))
+  ;; scribbleも使う場合は下を有効化
+  (add-to-list 'org-babel-load-languages '(scribble . t))
+  )
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; common-lisp
+;;; https://emacs.stackexchange.com/questions/78868/how-to-install-common-lisp-with-emacs-and-slime-when-the-slime-helper-el-is-not#:~:text=The%20easy%20way%20is%20to%20just%20use-package%20the,part%20%28called%20SLYNK%29%20into%20your%20common%20lisp%20implementation.
+
+(use-package slime
+  :init
+  (progn
+    (require 'slime-autoloads)
+    (add-hook 'slime-mode-hook
+              (lambda ()
+                (unless (slime-connected-p)
+                  (save-excursion (slime))))))
+  :config
+  (progn
+    (use-package slime-company)
+    (setf inferior-lisp-program "/usr/bin/sbcl")
+    ;; https://qiita.com/bori_so1/items/38182e4171fad82c7ff0#slime%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB
+    ;;  (slime-setup '(slime-fancy slime-company))
+    (slime-setup '(slime-fancy slime-company slime-repl slime-banner))
+    (setq slime-net-coding-system 'utf-8-unix)
+    (define-key lisp-mode-map (kbd "C-c C-q") 'slime-close-all-parens-in-sexp)
+    (define-key slime-mode-indirect-map (kbd "M-_") 'paredit-convolute-sexp)
+    (define-key slime-repl-mode-map (kbd "C-c C-z") #'quit-window)
+   ;; fix comment out (define-key slime-repl-mode-map (read-kbd-macro paredit-backward-delete-key) nil)
+    ))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ddskk
+(use-package ddskk-autoloads
+  :ensure ddskk)
+
+;;(require 'skk)
+
+(global-set-key (kbd "C-x C-j") 'skk-mode)
+;; (global-set-key "\C-xj" 'skk-auto-fill-mode) ;; 改行を自動入力する場合
+;; (global-set-key "\C-xt" 'skk-tutorial)       ;; チュートリアル
+(setq default-input-method "japanese-skk")
+
+;;(setq skk-user-directory "~/Dropbox/emacs/SKK") ;; 設定ファイル、個人辞書ファイルの置き場
+;;(setq skk-init-file "~/Dropbox/emacs/SKK/init") ;; 設定ファイルの指定
+
+;; (leaf ddskk
+;;       :ensure t
+;;       :bind
+;;       ("C-x j" . skk-mode))
+
+;;(leaf skk-study  :ensure t)
+;;(leaf skk-hint  :ensure t)
+
+;; Windows 環境だと [noconvert]
+(setq skk-sticky-key [muhenkan])
+(when (equal system-type 'windows-nt)
+  (setq skk-sticky-key [noconvert])
+  )
+
+(require 'skk-hint)
+;;　muhenkanなどのキー名はどうやって取得するのかというと、 <f1> c を使います。その後に無変換キーを押せば「<muhenkan> is undefined」と出てきます。
+
+(when (require 'skk nil t)
+  (global-set-key (kbd "C-x j") 'skk-auto-fill-mode) ;;良い感じに改行を自動入力してくれる機能
+  (setq default-input-method "japanese-skk")         ;;emacs上での日本語入力にskkをつかう
+  (require 'skk-study))                              ;;変換学習機能の追加
+
+;;; end of ddskk ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Support for Git files (.gitconfig, .gitignore, .gitattributes...)
+(use-package git-modes
+  :commands (gitattributes-mode
+             gitconfig-mode
+             gitignore-mode)
+  :mode (("/\\.gitignore\\'" . gitignore-mode)
+         ("/info/exclude\\'" . gitignore-mode)
+         ("/git/ignore\\'" . gitignore-mode)
+         ("/.gitignore_global\\'" . gitignore-mode)  ; jc-dotfiles
+
+         ("/\\.gitconfig\\'" . gitconfig-mode)
+         ("/\\.git/config\\'" . gitconfig-mode)
+         ("/modules/.*/config\\'" . gitconfig-mode)
+         ("/git/config\\'" . gitconfig-mode)
+         ("/\\.gitmodules\\'" . gitconfig-mode)
+         ("/etc/gitconfig\\'" . gitconfig-mode)
+
+         ("/\\.gitattributes\\'" . gitattributes-mode)
+         ("/info/attributes\\'" . gitattributes-mode)
+         ("/git/attributes\\'" . gitattributes-mode)))
+
+;; Configure built-in sgml-mode to automatically enable
+;; `sgml-electric-tag-pair-mode' in `html-mode' and `mhtml-mode', providing
+;; automatic insertion of matching closing tags.
+(use-package sgml-mode
+  :ensure nil
+  :commands (sgml-mode sgml-electric-tag-pair-mode)
+  :hook ((html-mode mhtml-mode) . sgml-electric-tag-pair-mode))
+
+;; Support for YAML files.
+;;
+;; NOTE: Prefer the tree-sitter-based yaml-ts-mode over yaml-mode when
+;; available, as it provides more accurate syntax parsing and enhanced editing
+;; features.
+(use-package yaml-mode
+  :commands yaml-mode
+  :mode (("\\.yaml\\'" . yaml-mode)
+         ("\\.yml\\'" . yaml-mode)))
+
+;; Support for Dockerfile files.
+;;
+;; NOTE: Prefer the tree-sitter-based dockerfile-ts-mode over dockerfile-mode
+;; when available, as it provides more accurate syntax parsing and enhanced
+;; editing features.
+(use-package dockerfile-mode
+  :commands dockerfile-mode
+  :mode ("Dockerfile\\'" . dockerfile-mode))
+
+;; Support for Gnuplot files
+(use-package gnuplot
+  :commands gnuplot-mode
+  :mode ("\\.gp\\'" . gnuplot-mode))
+
+;; Support for *.lua files.
+;;
+;; Prefer the tree-sitter-based lua-ts-mode over lua-mode when available, as it
+;; provides more accurate syntax parsing and enhanced editing features.
+(use-package lua-mode
+  :commands lua-mode
+  :mode ("\\.lua\\'" . lua-mode))
+
+;; Jinja2 template support for files commonly used in configuration management
+;; systems and web frameworks. This mode enables syntax highlighting and basic
+;; editing facilities for templates written using the Jinja2 templating
+;; language.
+(use-package jinja2-mode
+  :commands jinja2-mode
+  :mode ("\\.j2\\'" . jinja2-mode))
+
+;; CSV file support with automatic column alignment. This configuration enables
+;; csv-align-mode whenever a CSV file is opened, improving readability by
+;; keeping columns visually aligned according to a configurable maximum width
+;; and a set of recognized field separators.
+(use-package csv-mode
+  :commands (csv-mode
+             csv-align-mode
+             csv-guess-set-separator)
+  :mode ("\\.csv\\'" . csv-mode)
+  :hook ((csv-mode . csv-align-mode)
+         (csv-mode . csv-guess-set-separator))
+  :custom
+  (csv-align-max-width 100)
+  (csv-separators '("," ";" " " "|" "\t")))
+
+;; Support for Go
+;;
+;; NOTE: Prefer the tree-sitter-based go-ts-mode over go-mode
+;; when available, as it provides more accurate syntax parsing and enhanced
+;; editing features.
+(use-package go-mode
+  :commands go-mode
+  :mode ("\\.go\\'" . go-mode))
+
+;; Support for Rust
+(use-package rust-mode
+  :commands rust-mode
+  :mode ("\\.rs\\'" . rust-mode)
+  :custom
+  (rust-indent-offset 2))
+
+;; Major mode for editing crontab files
+(use-package crontab-mode
+  :commands crontab-mode
+  :mode ("/crontab\\(\\.X*[[:alnum:]]+\\)?\\'"  . crontab-mode))
+
+;; Major mode for editing Nginx configuration files
+(use-package nginx-mode
+  :commands nginx-mode
+  :mode (("nginx\\.conf\\'" . nginx-mode)
+         ("/nginx/.+\\.conf\\'" . nginx-mode)))
+
+;; Major mode for HashiCorp Configuration Language (HCL) files
+(use-package hcl-mode
+  :commands hcl-mode
+  :mode ("\\.hcl\\'" . hcl-mode))
+
+;; Major mode for Nix expression language files
+(use-package nix-mode
+  :commands nix-mode
+  :mode ("\\.nix\\'" . nix-mode))
+
+;; Major mode for editing Fish shell scripts
+(use-package fish-mode
+  :commands fish-mode
+  :mode ("\\.fish\\'" . fish-mode))
+
+;; Vim configuration file support. This mode provides syntax highlighting and
+;; editing support for various Vim configuration files, including vimrc, gvimrc,
+;; local overrides, and project-specific configuration files.
+(use-package vimrc-mode
+  :commands vimrc-mode
+  :mode ("\\.vim\\(rc\\)?\\'" . vimrc-mode))
+
+;; Support for Jenkinsfile files
+(use-package jenkinsfile-mode
+  :commands jenkinsfile-mode
+  :mode ("Jenkinsfile\\'" . jenkinsfile-mode))
+
+;; Support for Haskell
+;; (use-package haskell-mode
+;;   :commands haskell-mode
+;;   :mode ("\\.hs\\'" . haskell-mode))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (use-package ace-window
   :ensure t
@@ -258,21 +1176,8 @@
   :custom (aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
   :config (ace-window-display-mode 1))
 
-(use-package projectile
-  :ensure t
-  :diminish projectile-mode
-  :bind-keymap ("C-c p" . projectile-command-map)
-  :init (projectile-mode 1)
-  :custom
-  (projectile-project-root-files '("Makefile" "CMakeLists.txt" ".git"))
-  (projectile-project-search-path '("~/src/" "~/my-project/" "~/work/"))
-  (projectile-indexing-method 'alien)
-  (projectile-enable-caching t))
 
-(use-package counsel-projectile
-  :ensure t
-  :after (counsel projectile)
-  :config (counsel-projectile-mode 1))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -348,510 +1253,7 @@
   (message "[forge] loaded - GitHub PR/Issue integration enabled inside Magit"))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; theme
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(mapc #'disable-theme custom-enabled-themes)  ; Disable all active themes
-;; (load-theme 'deeper-blue t)  ; Load the built-in theme
-
-(use-package tomorrow-night-deepblue-theme
-  :ensure t
-  :config
-  ;; Disable all themes and load the Tomorrow Night Deep Blue theme
-  (mapc #'disable-theme custom-enabled-themes)
-  ;; Load the tomorrow-night-deepblue theme
-  (load-theme 'tomorrow-night-deepblue t))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(use-package paredit
-  :ensure t
-  :hook ((emacs-lisp-mode . paredit-mode)
-         (lisp-mode . paredit-mode)          ;; Common Lisp, Schemeなどlisp系全般
-         (racket-mode . paredit-mode)        ;; Racket mode
-         (scheme-mode . paredit-mode)        ;; Scheme専用メジャーモード
-         (c-mode . paredit-mode)))            ;; C言語でも使いたい場合（普通はあまり使わないが要望に応じて）
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(use-package easy-kill
-  :ensure t
-  :config
-  (global-set-key [remap kill-ring-save] 'easy-kill))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Helpful is an alternative to the built-in Emacs help that provides much more
-;; contextual information.
-(use-package helpful
-  :ensure t
-  :commands (helpful-callable
-             helpful-variable
-             helpful-key
-             helpful-command
-             helpful-at-point
-             helpful-function)
-  :bind
-  ([remap describe-command] . helpful-command)
-  ([remap describe-function] . helpful-callable)
-  ([remap describe-key] . helpful-key)
-  ([remap describe-symbol] . helpful-symbol)
-  ([remap describe-variable] . helpful-variable)
-  :custom
-  (helpful-max-buffers 7))
-
-
-;;; SAVEHIST https://mugijiru.github.io/.emacs.d/basics/savehist/
-;;; Emacs  save from mini-buffer
-
-;;(savehist-mode 1)
-;;(setq savehist-additional-variables '(kill-ring))
-
-;; 以前に開いていた位置を保存/復元する
-;;save-place-mode を有効にしていると以前に開いたことのあるファイルの、開いていた場所を覚えておいてくれる。
-
-;;(save-place-mode 1)
-
-
-
-;; ---------------------------------------------------------
-;; 1. Ivy + Counsel + Posframe（中央表示 + ESC連打即閉じ）
-;; ---------------------------------------------------------
-
-(use-package ivy
-  :diminish
-  :bind (("M-x"       . counsel-M-x)
-         ("C-x C-f"   . counsel-find-file)
-         ("C-x b"     . ivy-switch-buffer)
-         ("C-c k"     . counsel-ag)
-         ("C-s"       . swiper)
-         :map ivy-minibuffer-map
-         ("<escape>" . minibuffer-keyboard-quit))
-  :init
-  (ivy-mode 1)
-  :config
-  (setq ivy-use-virtual-buffers t
-        ivy-count-format "(%d/%d) "
-        ivy-display-style 'fancy
-        ivy-initial-inputs-alist nil
-        ivy-re-builders-alist '((t . ivy--regex-plus)))
-
-  ;; ──────────────────────────────
-  ;; ESC連打で絶対に閉じる神設定（エラーゼロ）
-  ;; ──────────────────────────────
-  (defun my/force-quit-minibuffer ()
-    "ミニバッファとivy-posframeを強制的に全部消す"
-    (interactive)
-    (when (active-minibuffer-window)
-      (minibuffer-keyboard-quit))
-
-    ;; (when (and (fboundp 'ivy-posframe-cleanup)
-    ;;            ivy-posframe-mode)
-    ;;   (ivy-posframe-cleanup))
-
-    (abort-recursive-edit))
-
-  (defvar my/esc-timer nil)
-  (defvar my/esc-count 0)
-
-  (defun my/esc-handler ()
-    (interactive)
-    (setq my/esc-count (1+ my/esc-count))
-    (when (timerp my/esc-timer) (cancel-timer my/esc-timer))
-    (setq my/esc-timer
-          (run-at-time "0.2 sec" nil
-                       (lambda ()
-                         (when (>= my/esc-count 2)
-                           (my/force-quit-minibuffer))
-                         (setq my/esc-count 0)))))
-
-  (global-set-key (kbd "<escape>") 'my/esc-handler))
-
-
-(use-package swiper)
-
-(use-package ivy-rich
-  :after ivy
-  :config
-  (ivy-rich-mode 1)
-  (setq ivy-rich-path-style 'abbrev))
-
-(use-package prescient
-  :config (prescient-persist-mode 1))
-
-(use-package ivy-prescient
-  :after ivy prescient
-  :config (ivy-prescient-mode 1))
-
-
-;;(use-package posframe)   ; ivy-posframe の依存
-
-;; (use-package ivy-posframe
-;;   :after ivy
-;;   :custom
-;;   (ivy-posframe-display-functions-alist '((t . ivy-posframe-display-at-frame-center)))
-;;   (ivy-posframe-width 80)
-;;   (ivy-posframe-height 15)
-;;   (ivy-posframe-border-width 2)
-;;   (ivy-posframe-parameters '((left-fringe . 8) (right-fringe . 8)))
-;;   ;; お好きな日本語フォントに変更（HackGen / JetBrains Mono / Ricty 等）
-;; ;;  (ivy-posframe-font "HackGen Console NF-13")
-;;   :config
-;;   (ivy-posframe-mode 1))
-
-
-;; ====================
-;; Embark（Ivy + Org 連携、src-block 挿入対応）
-;; ====================
-(use-package embark
-  :ensure t
-  :bind
-  (("C-." . embark-act)
-   ("C-;" . embark-dwim)
-   ("C-h B" . embark-bindings))
-  :init
-  (setq prefix-help-command #'embark-prefix-help-command)
-  :config
-  (define-key ivy-minibuffer-map (kbd "C-.") #'embark-act)
-
-  (define-key embark-file-map (kbd "o") #'find-file-other-window)
-  (define-key embark-buffer-map (kbd "k") #'kill-buffer)
-
-;; Embark と ace-window の連携（任意のウィンドウで開く）
-;; 現在の post-init.el にはすでに ace-window が導入されており、Embarkのファイルアクションとして (define-key embark-file-map (kbd "o") #'find-file-other-window) が設定されています。
-;;これをさらに進化させ、**Embarkで選択したファイルやバッファを、ace-windowを使って「画面上の好きなウィンドウを指定して開く」**ようにすると便利です。
-;;以下のマクロとキーバインドを embark の :config セクションに追加（または変更）してみてください。
-
-(eval-when-compile
-  (defmacro my/embark-ace-action (fn)
-    `(defun ,(intern (concat "my/embark-ace-" (symbol-name fn))) ()
-       (interactive)
-       (with-demoted-errors "%s"
-         (require 'ace-window)
-         (let ((aw-dispatch-always t))
-           (aw-switch-to-window (aw-select nil))
-           (call-interactively (symbol-function ',fn)))))))
-
-;; 'o' を押したときの挙動を ace-window 連携に変更
-(define-key embark-file-map     (kbd "o") (my/embark-ace-action find-file))
-(define-key embark-buffer-map   (kbd "o") (my/embark-ace-action switch-to-buffer))
-
-
-;; Embarkのファイル操作マップ (embark-file-map) には、デフォルト以外にもよく使うアクションを追加しておくのがおすすめです。
-
-;; ファイルを別の場所へコピーする
-(define-key embark-file-map (kbd "c") #'copy-file)
-;; 選択したコマンドにキーバインディングを追加する
-(define-key embark-command-map (kbd "g") #'global-set-key)
-
-
-  ;; 独自キーマップを作成
-  ;; (defvar embark-org-heading-map (make-sparse-keymap)
-  ;;   "Keymap for embark actions on Org headings.")
-  ;; (defvar embark-general-map (make-sparse-keymap)
-  ;;   "General embark action keymap.")
-  ;;
-  ;; (defun my/org-insert-src-block (lang)
-  ;;   "Org-mode で指定言語の src-block を挿入。"
-  ;;   (interactive "sLanguage: ")
-  ;;   (let ((template (format "#+BEGIN_SRC %s\n\n#+END_SRC" lang)))
-  ;;     (insert template)
-  ;;     (forward-line -1)
-  ;;     (end-of-line)))
-  ;;
-  ;; ;; よく使う言語でキーバインド登録
-  ;; (dolist (pair '(("el" . "emacs-lisp")
-  ;;                 ("py" . "python")
-  ;;                 ("sh" . "shell")))
-  ;;   (let ((key (car pair))
-  ;;         (lang (cdr pair)))
-  ;;     (define-key embark-org-heading-map (kbd key)
-  ;;       `(lambda () (interactive) (my/org-insert-src-block ,lang)))))
-  ;;
-  ;; ;; 任意の言語を入力
-  ;; (define-key embark-org-heading-map (kbd "s") #'my/org-insert-src-block)
-  ;; ;; どこでも使える汎用アクション(S)
-  ;; (define-key embark-general-map (kbd "S") #'my/org-insert-src-block)
-  )
-
-
-;; ====================
-;; avy ? 高速ジャンプ
-;; ====================
-
-(use-package avy
-  :ensure t
-  :bind
-  (("C-:" . avy-goto-char-timer)     ; 文字を2文字入力でジャンプ
-   ("C-'" . avy-goto-char)           ; 1文字でジャンプ（候補多いとき便利）
-   ("M-g M-g" . avy-goto-line)       ; 行ジャンプ（標準の goto-line を置き換え）
-   ("M-g g" . avy-goto-line)         ; 同上
-   ;; ("C-c j" . avy-goto-word-1)       ; 単語の頭文字でジャンプ
-   ;; ("C-c C-j" . avy-goto-subword-1)  ; サブワード（camelCase対応）
-   ("s-j" . avy-goto-char-timer))    ; Super + j でグローバルジャンプ（GUI/macOS）
-
-  :init
-  ;; 起動時に少し待機（タイマー入力用）
-  (setq avy-timeout-seconds 0.3)
-
-  :config
-  ;; 見た目をカスタマイズ
-  (setq avy-background t)               ; 背景を暗くして目立つ
-  (setq avy-style 'at-full)             ; 候補を全画面に表示
-  (setq avy-all-windows t)              ; すべてのウィンドウを対象（C-u で切り替え可）
-
-  ;; キーを視覚的に強調
-  (set-face-attribute 'avy-lead-face nil
-                      :foreground "white" :background "red" :weight 'bold)
-  (set-face-attribute 'avy-lead-face-0 nil
-                      :foreground "white" :background "blue" :weight 'bold)
-  (set-face-attribute 'avy-lead-face-1 nil
-                      :foreground "white" :background "green" :weight 'bold)
-
-  ;; 行ジャンプ時に行頭ではなく行中央にジャンプ
-  (setq avy-goto-line-function #'avy-goto-line-below)
-
-  ;; 日本語環境でも快適に（全角対応）
-  (setq avy-dispatch-keys '(?a ?b ?s ?z ?d ?f ?g ?h ?j ?l ?q ?w ?e ?r ?u ?i ?p))
-
-  ;; AvyとEmbarkの直接連携（Anyアクション）の追加
-  (defun avy-action-embark (pt)
-  (unwind-protect
-      (save-excursion
-        (goto-char pt)
-        (embark-act))
-    (select-window
-     (cdr (ringref avy-ring 0))))
-  t)
-
-;; ディスパッチキー 'o' でEmbarkを呼び出す
-(setf (alist-get ?o avy-dispatch-alist) 'avy-action-embark)
-)
-
-;; -----------------------------------------------------------------
-
-;; ---------------------------------------------------------
-;; --debug-init
-;; ---------------------------------------------------------
-(message "init.el loaded , avy jump ")
-
-
-;; ---------------------------------------------------------------------------------------------------------------------------------
-;;treemacs を導入すると、視覚的に構造化されたツリーレイアウトでファイルが表示され、マウスクリックによるディレクトリの展開やファイルのオープンなど
-;;
-(use-package treemacs
-  :defer t
-  :bind
-  (:map global-map
-        ("M-0"       . treemacs-select-window)
-        ("C-x t 1"   . treemacs-delete-other-windows)
-        ("C-x t t"   . treemacs)
-        ("C-x t B"   . treemacs-bookmark)
-        ("C-x t C-t" . treemacs-find-file)
-        ("C-x t M-t" . treemacs-find-tag)))
-
-
-;; ;; ==============================================================
-;; ;; DDSKK（超快適日本語入力）? Emacs 28 完全対応・use-package 版
-;; ;; ==============================================================
-
-;; ;; 1. まず SKK の辞書を自動ダウンロード（初回だけ）
-;; (use-package ddskk
-;;   :ensure t
-;;   :bind (("C-x C-j" . skk-mode)        ; いつでもSKK起動
-;;          ("C-x j"   . skk-mode))       ; 短縮版（好みで）
-;;   :custom
-;;   ;; 辞書（これだけで大辞林＋人名地名＋全角記号までカバー）
-;;   (skk-large-jisyo "/usr/share/skk/SKK-JISYO.L")   ; システム辞書（Debian/Ubuntu）
-;;   ;; なければ自動で ~/.skk/SKK-JISYO.L をダウンロード
-;;   (skk-jisyo (or (file-exists-p "/usr/share/skk/SKK-JISYO.L")
-;;                  (expand-file-name "~/.skk/SKK-JISYO.L")))
-
-;;   ;; 見た目・挙動（2025年現在これが最強）
-;;   (skk-use-azik t)                     ; AZIK（超打ちやすい拡張ローマ字）;;
-;; ;;  (skk-azik-keyboard-type 'pc106)      ; 日本語109キーボード用
-;; ;;  (skk-sticky-key ";")                 ; ; で確定＋次候補
-;; ;;  (skk-show-annotation t)              ; 注釈表示（単語の意味が出る）
-;; ;;  (skk-annotation-show-as-message nil) ; 注釈は別ウィンドウにしない
-;;   (skk-show-tooltip t)                 ; ツールチップで候補表示（美しくて見やすい）
-;;   (skk-tooltip-parameters '((background-color . "#333333")
-;;                             (foreground-color . "#ffffff")
-;;                             (border-color . "#888888")))
-;;   (skk-isearch-mode-enable nil)        ; isearch 中はSKK無効（好みで）
-;; ;;  (skk-auto-start-henkan t)            ; 自動で変換開始
-;; ;;  (skk-henkan-show-candidates-keys ?\; ?\:) ; ; と : で候補切り替え
-
-;;   :init
-;;   ;; 初回起動時に大辞林を自動ダウンロード（~/.skk/ に置く）
-;;   (unless (file-exists-p (expand-file-name "~/.skk/SKK-JISYO.L"))
-;;     (let ((url "https://raw.githubusercontent.com/skk-dev/dict/master/SKK-JISYO.L"))
-;;       (mkdir "~/.skk" t)
-;;       (url-copy-file url "~/.skk/SKK-JISYO.L" t)
-;;       (message "DDSKK: 大辞林をダウンロードしました！")))
-
-;;   :config
-;;   ;; 起動時に自動で SKK モード（好みで）
-;;   ;; (skk-mode 1)   ; ← 全バッファで常時SKKにしたい人はコメント解除
-
-;;   ;; 日本語入力中はカーソル色を変える（視認性爆上がり）
-;;   (setq skk-indicator-use-cursor-color t)
-;;   (defun my/skk-cursor-color ()
-;;     (set-cursor-color
-;;      (if (eq skk-henkan-mode 'active)
-;;          "#ff5555"   ; 変換中は赤
-;;        (if skk-jisx0208-latin-mode
-;;            "#55ff55"   ; ラテン入力中は緑
-;;          "#ffff55")))) ; 通常は黄
-;;   (add-hook 'skk-mode-hook #'my/skk-cursor-color)
-
-;;   ;; モードラインに「あ」「▽」「▼」を美しく表示
-;;   (setq skk-show-mode-in-mode-line t)
-;;   (setq skk-mode-in-menubar t))
-
-;; ;; 2. 必要なら fcitx5 との共存（WSLg でも安心）
-;; (when (getenv "WSL_DISTRO_NAME")
-;;   (setq skk-server-host "localhost")
-;;   (setq skk-server-port 1178))
-
-
-;; ==============================================================
-;; persistent-scratch（scratchバッファを永続化）? use-package 版
-;; ==============================================================
-
-(use-package persistent-scratch
-  :ensure t    ; MELPA から自動インストール
-  :config
-  ;; デフォルト設定：自動保存 + 起動時復元（エラーが出ないよう安全）
-  (with-eval-after-load 'emacs
-    (ignore-errors
-      (persistent-scratch-setup-default)))
-
-  ;; オプション：自動保存モードを明示的に有効（好みで）
-  ;; (persistent-scratch-autosave-mode 1)
-
-  ;; カスタマイズ例：保存ファイルのパスを変更したい場合
-  ;; (setq persistent-scratch-save-file (expand-file-name "~/.emacs.d/scratch-save.el"))
-  )
-;; ;; ---------------------------------------------------------
-;; ;; org-mode  https://mugijiru.github.io/.emacs.d/org-mode/base/
-;; ;; ---------------------------------------------------------
-
-;; ;;org 用ディレクトリの指定
-;; ;;デフォルトだと ~/org なのだけど ~/Documents/org というディレクトリを用意してそこにファイル。
-
-;; (setq org-directory (expand-file-name "~/Documents/org/"))
-
-;; ;;タスク管理ファイルのフォルダの指定
-;; ;;タスク管理ファイルがいくつかに分かれているがそれらをまとめて ~/Documents/org/tasks フォルダに置いて
-
-;; (setq my/org-tasks-directory (concat org-directory "tasks/"))
-;; ;;とりあえずこの my/org-tasks-directory という変数を用意することで使い回している。
-
-;; ;;タスクの状態管理のキーワード指定 org-mode といえば TODO 管理
-;; (setq org-todo-keywords
-;;             '((sequence "TODO" "EXAMINATION(e)" "READY(r)" "DOING(!)" "WAIT" "|" "DONE(!)" "SOMEDAY(s)")))
-
-;; ;;    初期状態は TODO で、作業開始時点で DOING にして待ちが発生したら WAIT にして完了したら DONE に。
-;; ;;    SOMEDAY は「いつかやる」に付与している
-
-;; ;; 完了時間の記録 org-clock を使うようにしているしあんまり要らない気がする。もしかしたら habits で必要かもしれないけど。
-
-;; (setq org-log-done 'time)
-;; (setq org-log-into-drawer "LOGBOOK")
-
-;; ;;org ファイルを開いた時の折り畳み デフォルト設定では全展開だけど、基本的に見出しだけ見れれば良いかなと思うのでそのように設定した。
-
-;; (custom-set-variables
-;;  '(org-startup-folded t))
-
-;; ;;タグ設定時の補完候補設定 agenda ファイルに使われているタグは全部補完対象になってほしいのでそのように設定
-
-;; (custom-set-variables
-;;  '(org-complete-tags-always-offer-all-agenda-tags t))
-
-;; ;;org-babel で評価可能な言語の指定
-
-;; (org-babel-do-load-languages 'org-babel-load-languages
-;;                              '( (plantuml . t)
-;;                              ;;  (sql . t)
-;;                              ;;  (gnuplot . t)
-;;                                (emacs-lisp . t)
-;;                                (shell . t)
-;;                                (python . t)
-;;                                (org . t)
-;;                              ;;  (graphql . t)
-;;                              ;;  (ruby . t)
-;;                                ))
-
-;; ;;カスタム変数の設定
-;; ;;org-id-link-to-org-use-id を t にしていると org-store-link を実行した時に自動で id を発行してそれを store してくれるようになる
-;; ;;また archive ファイルを同じフォルダに archives フォルダを掘ってそこに格納したいので org-archive-location を設定している
-
-;; (custom-set-variables
-;;  '(org-id-link-to-org-use-id t)
-;;  '(org-archive-location "./archives/%s_archive::"))
-
-;;;;;;;;;; racket mode
-;;;;;;;;; https://github.com/greghendershott/racket-mode
-
-(use-package racket-mode
-  :ensure t
-  :config
-  (setq racket-program "C:\\users\\mevius\\Racket\\Racket.exe")
-  )
-
-;;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;; tree-sitter config
-;; UCRT64 の gcc を PATH に追加（文法コンパイル用）
-(let ((ucrt-bin "C:/msys64/ucrt64/bin"))
-  (when (file-directory-p ucrt-bin)
-    (setenv "PATH" (concat ucrt-bin path-separator (getenv "PATH")))
-    (setq exec-path (cons ucrt-bin exec-path))))
-
-(setq treesit-language-source-alist
-      '((c           "https://github.com/tree-sitter/tree-sitter-c")
-        (cpp         "https://github.com/tree-sitter/tree-sitter-cpp")
-        (lua         "https://github.com/tree-sitter-grammars/tree-sitter-lua")
-        (luau        "https://github.com/tree-sitter-grammars/tree-sitter-luau")
-        (elisp       "https://github.com/Wilfred/tree-sitter-elisp")
-        (common-lisp "https://github.com/tree-sitter-grammars/tree-sitter-commonlisp")
-        (scheme      "https://github.com/6cdh/tree-sitter-scheme")
-        (racket      "https://github.com/6cdh/tree-sitter-racket")))
-
-;; common-lisp のCシンボル名（ハイフンの有無）の不一致を解消するマッピング（一括インストールの前に定義）
-(add-to-list 'treesit-load-name-override-list
-             '(common-lisp "libtree-sitter-common-lisp" "tree_sitter_commonlisp"))
-
-;; 一括インストール（警告を抑制しつつ実行）
-(let ((warning-suppress-types '((treesit))))
-  (dolist (lang '(c cpp lua luau elisp common-lisp scheme racket))
-    (unless (treesit-language-available-p lang)
-      (ignore-errors
-        (treesit-install-language-grammar lang)))))
-
-
-;;;;;;;
-(setq major-mode-remap-alist
-      '((c-mode       . c-ts-mode)
-        (c++-mode     . c++-ts-mode)
-        (lua-mode     . lua-ts-mode)))   ; Emacs 30.1 以降は lua-ts-mode が built-in
-
-
-;;;;;;;;;;;;
-;; === tree-sitter ライブラリの検索パスを明示 ===
-(add-to-list 'treesit-extra-load-path
-             (file-name-concat user-emacs-directory "tree-sitter"))
-
-
-
-;; racket-mode が開かれたら自動でパーサーを作成
-(add-hook 'racket-mode-hook
-          (lambda ()
-            (when (treesit-language-available-p 'racket)
-              (treesit-parser-create 'racket))))
-
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; https://codeberg.org/akib/emacs-eat#headline-2
@@ -883,142 +1285,10 @@
   (add-hook 'eshell-load-hook #'eat-eshell-mode)
   (add-hook 'eshell-load-hook #'eat-eshell-visual-command-mode))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; stripspace を導入し、保存時に末尾の不要な空白・空行を自動削除
-;; The stripspace Emacs package provides stripspace-local-mode, a minor mode
-;; that automatically removes trailing whitespace and blank lines at the end of
-;; the buffer when saving.
-(use-package stripspace
-  :commands stripspace-local-mode
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;:windows
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  ;; Enable for prog-mode-hook, text-mode-hook, conf-mode-hook
-  :hook ((prog-mode . stripspace-local-mode)
-         (text-mode . stripspace-local-mode)
-         (conf-mode . stripspace-local-mode))
-
-  :custom
-  ;; The `stripspace-only-if-initially-clean' option:
-  ;; - nil to always delete trailing whitespace.
-  ;; - Non-nil to only delete whitespace when the buffer is clean initially.
-  ;; (The initial cleanliness check is performed when `stripspace-local-mode'
-  ;; is enabled.)
-  (stripspace-only-if-initially-clean nil)
-
-  ;; Enabling `stripspace-restore-column' preserves the cursor's column position
-  ;; even after stripping spaces. This is useful in scenarios where you add
-  ;; extra spaces and then save the file. Although the spaces are removed in the
-  ;; saved file, the cursor remains in the same position, ensuring a consistent
-  ;; editing experience without affecting cursor placement.
-  (stripspace-restore-column t))
-
-
-;;;;;; yasnippet を導入し、定型文やコードブロックの入力をテンプレート化
-;; https://github.com/jamescherti/minimal-emacs.d/blob/main/README.md#efficient-template-expansion-with-snippets
-;; The official collection of snippets for yasnippet.
-(use-package yasnippet-snippets
-  :after yasnippet)
-
-;; YASnippet is a template system designed that enhances text editing by
-;; enabling users to define and use snippets. When a user types a short
-;; abbreviation, YASnippet automatically expands it into a full template, which
-;; can include placeholders, fields, and dynamic content.
-(use-package yasnippet
-  :custom
-  (yas-also-auto-indent-first-line t)  ; Indent first line of snippet
-  (yas-also-indent-empty-lines t)
-  (yas-snippet-revival nil)  ; Setting this to t causes issues with undo
-  (yas-wrap-around-region nil) ; Do not wrap region when expanding snippets
-  ;; (yas-triggers-in-field nil)  ; Disable nested snippet expansion
-  ;; (yas-indent-line 'fixed) ; Do not auto-indent snippet content
-  ;; (yas-prompt-functions '(yas-no-prompt))  ; No prompt for snippet choices
-
-  :init
-  ;; Suppress verbose messages
-  (setq yas-verbosity 0)
-
-  :config
-  (yas-global-mode 1))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;　重要　消さない ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Windows環境向けのクリップボード・コピペ設定の修正 (UTF-8版)
-;;(when (eq system-type 'windows-nt)
-;;  (set-selection-coding-system 'utf-8)
-;;  (set-clipboard-coding-system 'utf-8))
-
-;; Windows環境向けのクリップボード・コピペ設定の修正 (CP932版)
-(when (eq system-type 'windows-nt)
-  (set-selection-coding-system 'japanese-cp932)
-  (set-clipboard-coding-system 'japanese-cp932))
-
-;; デフォルトのフォントサイズを2段階大きく設定 (デフォルト 100/105 -> 140)
-(set-face-attribute 'default nil :height 140)
-
-;; GUI画面の右端での自動折り返し表示（ソフトラップ）を有効化
-(setq-default truncate-lines nil)
-
-
-
-
-;; ============================================================
-;; Projectile 強化設定 (mugijiru 系 + 実践的追加)
-;; ============================================================
-;; 既存の (use-package projectile) の後ろに追記推奨
-;; より良いデフォルト + 無視パターン + キャッシュ
-
-(with-eval-after-load 'projectile
-  ;; より多くのルートマーカー
-  (setq projectile-project-root-files
-        (append '("package.json" "Cargo.toml" "pyproject.toml" "go.mod" "Makefile" ".git")
-                projectile-project-root-files))
-
-  ;; 実用的な無視パターン
-  (setq projectile-globally-ignored-directories
-        (append '(".git" "node_modules" "__pycache__" ".venv" "venv" "target" "dist" "build" ".next" ".cache")
-                projectile-globally-ignored-directories))
-
-  (setq projectile-globally-ignored-files
-        (append '("*.pyc" "*.pyo" "*.elc" "*.o" "*.so" "*.swp" "*~")
-                projectile-globally-ignored-files))
-
-  (setq projectile-enable-caching t)
-  (setq projectile-sort-order 'recently-active)
-  (setq projectile-indexing-method 'alien))
-
-;; 便利な追加コマンド（必要なら）
-;; (define-key projectile-mode-map (kbd "C-c p s s") 'projectile-ripgrep) ; など
-
-;; ============================================================
-;; Hermes Agent CLI を Emacs (MSYS2 / Linux / Windows) から使えるようにする
-;; ============================================================
-(let* ((win-dir "/c/Users/mevius/AppData/Local/hermes/hermes-agent/venv/Scripts")
-       (hermes-dir
-        (cond
-         ;; Windows + MSYS2 / Cygwin Emacs の場合（推奨パス）
-         ((memq system-type '(windows-nt cygwin))
-          win-dir)
-         ;; Linux / macOS の場合
-         ;; 必要なら (expand-file-name "~/.local/bin") などに変更
-         (t
-          (getenv "HERMES_DIR")))))
-  (when (and hermes-dir (file-directory-p hermes-dir))
-    (add-to-list 'exec-path hermes-dir t)
-    (setenv "PATH" (concat hermes-dir path-separator (getenv "PATH")))
-    (with-eval-after-load 'eshell
-      (add-to-list 'eshell-path-env hermes-dir))
-    ;; デバッグ用（必要なら有効化）
-    ;; (message "[Hermes] Added to exec-path: %s" hermes-dir)
-    ))
-
-;; MSYS2 Emacs (32bit) で外部プロセス起動時に "Invalid argument" が出る場合のワークアラウンド
-(when (and (eq system-type 'windows-nt)
-           (getenv "MSYSTEM"))   ; MSYS2 環境で動いている場合
-  ;; 32bit Emacs + 64bit プロセス の相性問題を緩和
-  (setq w32-quote-process-args t)
-  ;; 必要に応じて shell を明示的に bash --login で起動する
-  ;; (setq explicit-shell-file-name "bash")
-  ;; (setq explicit-bash-args '("--login" "-i"))
-  )
 
 ;; ============================================================
 ;; Emacs shell (M-x shell) を MSYS2 bash で正しく起動するための設定
@@ -1041,81 +1311,28 @@
 
   (message "[Emacs] MSYS2 bash shell settings applied"))
 
-;; ============================================================
-;; eshell 向けの追加対策（32bit Emacs + 外部64bitコマンド対策）
-;; ============================================================
-(with-eval-after-load 'eshell
-  ;; eshell で外部コマンドを優先
-  (setq eshell-prefer-lisp-functions nil)
 
-  ;; 実行可能ファイルのサフィックス（MSYS2用）
-  (setq eshell-binary-suffixes '(".exe" ".bat" ".cmd" ""))
+;;;;;;;;;;;;;;;;;;;;;;;;;;　重要　消さない ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Windows環境向けのクリップボード・コピペ設定の修正 (UTF-8版)
+;;(when (eq system-type 'windows-nt)
+;;  (set-selection-coding-system 'utf-8)
+;;  (set-clipboard-coding-system 'utf-8))
 
-  ;; hermes-dir を eshell の PATH にも確実に追加（すでに上のコードでやっているが念のため）
-  (let ((win-dir "/c/Users/mevius/AppData/Local/hermes/hermes-agent/venv/Scripts"))
-    (when (file-directory-p win-dir)
-      (add-to-list 'eshell-path-env win-dir t)
-      (add-to-list 'exec-path win-dir t))))
+;; Windows環境向けのクリップボード・コピペ設定の修正 (CP932版)
+(when (eq system-type 'windows-nt)
+  (set-selection-coding-system 'japanese-cp932)
+  (set-clipboard-coding-system 'japanese-cp932))
 
-;; 強制的に bash 経由で外部コマンドを実行するラッパー
-;; M-x eshell や eshell で "hermes --version" が失敗する場合に使う
-;; ============================================================
-;; eshell で hermes / git を普通に打てるようにする（案B 有効化）
-;; M-! と同じ経路 (shell-command-to-string) を使うので安定
-;; ============================================================
-(defun my/eshell-run-via-shell (command &rest args)
-  "eshell から外部コマンドを shell-command 経路で実行する。
-直接 spawn が Invalid argument になる場合の回避策。"
-  (let* ((parts (cons command
-                      (mapcar (lambda (a) (format "%s" a)) args)))
-         (cmd (mapconcat #'identity parts " "))
-         (output (shell-command-to-string cmd)))
-    (when (and output (not (string-empty-p output)))
-      (eshell-print output))
-    nil))
+;; デフォルトのフォントサイズを2段階大きく設定 (デフォルト 100/105 -> 140)
+(set-face-attribute 'default nil :height 140)
 
-(with-eval-after-load 'eshell
-  ;; hermes: eshell で `hermes --version` などと普通に打てる
-  (defun eshell/hermes (&rest args)
-    "eshell 用 hermes ラッパー（shell-command 経路）"
-    (apply #'my/eshell-run-via-shell "hermes" args))
-
-  ;; git: eshell で `git --version` などと普通に打てる
-  ;; （Magit がある場合は Magit 優先でよいが、CLI 確認用に用意）
-  (defun eshell/git (&rest args)
-    "eshell 用 git ラッパー（shell-command 経路）"
-    (apply #'my/eshell-run-via-shell "git" args))
-
-  (message "[Emacs] eshell aliases enabled: hermes, git"))
-
-(message "eshell hermes/git aliases (案B) loaded")
-
-
-;; ============================================================
-;; より強力な MSYS2 shell 対策（32bit Emacs 向け）
-;; ============================================================
-(when (getenv "MSYSTEM")
-  ;; bash のフルパスを指定（相対名だと spawn に失敗しやすい）
-  (let ((possible-bash
-         (or (executable-find "bash")
-             "C:/msys64/usr/bin/bash.exe"
-             "C:/msys64/usr/bin/bash")))
-    (when (and possible-bash (file-executable-p possible-bash))
-      (setq shell-file-name possible-bash)
-      (setq explicit-shell-file-name possible-bash)))
-
-  (setq explicit-bash-args '("--login" "-i"))
-  (setq w32-quote-process-args t)
-  (setq w32-pipe-read-delay 0)
-  (setq process-connection-type nil)   ; pipe モードの方が安定する場合がある
-
-  ;; comint の安定化
-  (setq comint-process-echoes t)
-  (setq comint-scroll-show-maximum-output t)
-
-  (message "[Emacs] Stronger MSYS2 shell settings applied (full path + pipe)"))
+;; GUI画面の右端での自動折り返し表示（ソフトラップ）を有効化
+(setq-default truncate-lines nil)
 
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; post-init.el ends here.
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; eng of post-init.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
