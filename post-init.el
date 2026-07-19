@@ -193,46 +193,28 @@
   ;; package.
   (marginalia-mode 1))
 
-;; Embark integrates with Consult and Vertico to provide context-sensitive
-;; actions and quick access to commands based on the current selection, further
-;; improving user efficiency and workflow within Emacs. Together, they create a
-;; cohesive environment for managing completions and interactions.
-(use-package embark
-  :bind
-  (("C-." . embark-act)         ;; pick some comfortable binding
-   ("C-;" . embark-dwim)        ;; good alternative: M-.
-   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
 
+;; which-key.el とは、Emacsのキーバインド一覧を自動でポップアップ表示してくれる非常に便利なパッケージです。
+;; 簡単に言うと
+;; • C-x を押したまま少し待つと、「次に打てるキー一覧」がミニバッファやサイドに表示される。
+;; • C-h k（ヘルプ）よりずっと視覚的で、キーバインドを覚えなくても操作しやすくなる。
+;; これを Embarkと統合 すると、Embarkのアクション一覧（C-. を押した後のメニュー） が which-key風のコンパクトなポップアップで表示されるようになり、小型画面（X230）でも見やすくなります。
+;; 設定例（前回お伝えしたもの）
+
+;; which-key: single definition (Embark-friendly fast popup + padding).
+(use-package which-key
+  :ensure t
   :init
-
-  ;; Optionally replace the key help with a completing-read interface
-  (setq prefix-help-command #'embark-prefix-help-command)
-
-  ;; Show the Embark target at point via Eldoc. You may adjust the
-  ;; Eldoc strategy, if you want to see the documentation from
-  ;; multiple providers. Beware that using this can be a little
-  ;; jarring since the message shown in the minibuffer can be more
-  ;; than one line, causing the modeline to move up and down:
-
-  ;; (add-hook 'eldoc-documentation-functions #'embark-eldoc-first-target)
-  ;; (setq eldoc-documentation-strategy #'eldoc-documentation-compose-eagerly)
-
-  ;; Add Embark to the mouse context menu. Also enable `context-menu-mode'.
-  ;; (context-menu-mode 1)
-  ;; (add-hook 'context-menu-functions #'embark-context-menu 100)
-
-  :config
-  ;; Hide the mode line of the Embark live/completions buffers
-  (add-to-list 'display-buffer-alist
-               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
-                 nil
-                 (window-parameters (mode-line-format . none)))))
-
-(use-package embark-consult)
+  (which-key-mode 1)
+  :custom
+  (which-key-idle-delay 0.3)
+  (which-key-idle-secondary-delay 0.25)
+  (which-key-add-column-padding 1)
+  (which-key-max-description-length 40)
+  (which-key-sort-order 'which-key-key-order-alpha))
 
 ;; Consult offers a suite of commands for efficient searching, previewing, and
 ;; interacting with buffers, file contents, and more, improving various tasks.
-
 (use-package consult
   ;; Replace bindings. Lazily loaded by `use-package'.
   :bind (;; C-c bindings in `mode-specific-map'
@@ -256,7 +238,7 @@
          ("C-M-#" . consult-register)
          ;; Other custom bindings
          ("M-y" . consult-yank-pop)                ;; orig. yank-pop
-         ;; M-g bindings in `goto-map'
+         ;; M-g bindings in `goto-map' (consult preferred over avy for M-g g)
          ("M-g e" . consult-compile-error)
          ("M-g r" . consult-grep-match)
          ("M-g f" . consult-flymake)               ;; Alternative: consult-flycheck
@@ -331,6 +313,73 @@
   ;; You may want to use `embark-prefix-help-command' or which-key instead.
   ;; (keymap-set consult-narrow-map (concat consult-narrow-key " ?") #'consult-narrow-help)
   )
+
+;; Embark integrates with Consult and Vertico to provide context-sensitive
+;; actions and quick access to commands based on the current selection, further
+;; improving user efficiency and workflow within Emacs. Together, they create a
+;; cohesive environment for managing completions and interactions.
+(use-package embark
+  :ensure t
+  :bind
+  (("C-." . embark-act)         ;; pick some comfortable binding
+   ("C-;" . embark-dwim)        ;; good alternative: M-.
+   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
+
+  :init
+
+  ;; Optionally replace the key help with a completing-read interface
+  (setq prefix-help-command #'embark-prefix-help-command)
+
+  ;; Show the Embark target at point via Eldoc. You may adjust the
+  ;; Eldoc strategy, if you want to see the documentation from
+  ;; multiple providers. Beware that using this can be a little
+  ;; jarring since the message shown in the minibuffer can be more
+  ;; than one line, causing the modeline to move up and down:
+
+  ;; (add-hook 'eldoc-documentation-functions #'embark-eldoc-first-target)
+  ;; (setq eldoc-documentation-strategy #'eldoc-documentation-compose-eagerly)
+
+  ;; Add Embark to the mouse context menu. Also enable `context-menu-mode'.
+  ;; (context-menu-mode 1)
+  ;; (add-hook 'context-menu-functions #'embark-context-menu 100)
+
+  :config
+  ;; Hide the mode line of the Embark live/completions buffers
+  (add-to-list 'display-buffer-alist
+               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+                 nil
+                 (window-parameters (mode-line-format . none))))
+
+  ;; which-key-indicator（Embark wiki）。nil nil は which-key--show-keymap の
+  ;; PRIOR-ARGS / ALL-PREFIXES 引数。
+  (defun embark-which-key-indicator ()
+    "An embark indicator that displays keymaps using which-key."
+    (lambda (&optional keymap targets prefix)
+      (if (null keymap)
+          (which-key--hide-popup-ignore-command)
+        (which-key--show-keymap
+         (if (eq (car-safe (car targets)) 'embark-keymap)
+             (format "Embark: %s" (cdr (car targets)))
+           "Embark")
+         (if prefix
+             (pcase (lookup-key keymap prefix 'accept-default)
+               ((and (pred keymapp) km) km)
+               (_ keymap))
+           keymap)
+         nil nil t (lambda (binding)
+                     (not (string-suffix-p "-map" (cdr binding))))))))
+
+  (setq embark-indicators
+        '(embark-which-key-indicator
+          embark-highlight-indicator
+          embark-isearch-highlight-indicator)))
+
+;; Consult-specific Embark actions and Collect preview.
+(use-package embark-consult
+  :ensure t
+  :after (embark consult)
+  :hook
+  (embark-collect-mode . consult-preview-at-point-mode))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -453,6 +502,7 @@
 (add-hook 'css-ts-mode-hook #'treesit-fold-mode)
 (add-hook 'html-ts-mode-hook #'treesit-fold-mode)
 (add-hook 'bash-ts-mode-hook #'treesit-fold-mode)
+(add-hook 'racket-ts-mode-hook #'treesit-fold-mode)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -662,8 +712,7 @@
   :bind
   (("C-:" . avy-goto-char-timer)     ; 文字を2文字入力でジャンプ
    ("C-'" . avy-goto-char)           ; 1文字でジャンプ（候補多いとき便利）
-   ("M-g M-g" . avy-goto-line)       ; 行ジャンプ（標準の goto-line を置き換え）
-   ("M-g g" . avy-goto-line)         ; 同上
+   ;; M-g g / M-g M-g は consult-goto-line を優先（上記 consult 設定）
    ;; ("C-c j" . avy-goto-word-1)       ; 単語の頭文字でジャンプ
    ;; ("C-c C-j" . avy-goto-subword-1)  ; サブワード（camelCase対応）
    ("s-j" . avy-goto-char-timer))    ; Super + j でグローバルジャンプ（GUI/macOS）
@@ -692,19 +741,17 @@
   ;; 日本語環境でも快適に（全角対応）
   (setq avy-dispatch-keys '(?a ?b ?s ?z ?d ?f ?g ?h ?j ?l ?q ?w ?e ?r ?u ?i ?p))
 
-  ;; AvyとEmbarkの直接連携（Anyアクション）の追加
+  ;; Avy と Embark の直接連携（ディスパッチキー o）
   (defun avy-action-embark (pt)
-  (unwind-protect
-      (save-excursion
-        (goto-char pt)
-        (embark-act))
-    (select-window
-     (cdr (ringref avy-ring 0))))
-  t)
+    (unwind-protect
+        (save-excursion
+          (goto-char pt)
+          (embark-act))
+      (select-window
+       (cdr (ring-ref avy-ring 0))))
+    t)
 
-;; ディスパッチキー 'o' でEmbarkを呼び出す
-(setf (alist-get ?o avy-dispatch-alist) 'avy-action-embark)
-)
+  (setf (alist-get ?o avy-dispatch-alist) 'avy-action-embark))
 
 
 ;; (use-package avy
@@ -750,16 +797,6 @@
 
 ;; Set the maximum level of syntax highlighting for Tree-sitter modes
 (setq treesit-font-lock-level 4)
-
-(use-package which-key
-  :ensure t   ;;; fix nil -> t 　2026-07-17
-  :custom
-  (which-key-idle-delay 1.5)
-  (which-key-idle-secondary-delay 0.25)
-  (which-key-add-column-padding 1)
-  (which-key-max-description-length 40)
-  :init
-  (which-key-mode 1))
 
 (unless (and (eq window-system 'mac)
              (bound-and-true-p mac-carbon-version-string))
@@ -877,10 +914,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; scheme , lisp 系
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-
 ;;; parEdit
+
+
 ;; Prevent parenthesis imbalance
 (use-package paredit
   :commands paredit-mode
@@ -937,7 +973,6 @@
 (require 'quelpa-use-package)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; racket-mode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -961,6 +996,8 @@
   ;; M-x racket-mode-start-faster  または
   ;; M-x racket-xp-mode 後に必要なら racket-mode の案内に従う
   )
+
+
 ;;;;;;;;;;;;;
 ;; https://github.com/DEADB17/ob-racket/blob/master/ob-racket.el
 ;; (add-to-list 'load-path "~/.minimal-emacs.d/elpa/ob-racket.el")
