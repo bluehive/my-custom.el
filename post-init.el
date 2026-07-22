@@ -156,19 +156,32 @@
 
 ;; Vertico provides a vertical completion interface, making it easier to
 ;; navigate and select from completion candidates (e.g., when `M-x` is pressed).
+;; NOTE: Vertico is minibuffer UI (not always-on like some Ivy setups).
+;; Verify after restart: M-x should show a vertical candidate list.
+;; Prefer: emacs --init-directory ~/.minimal-emacs.d/
 (use-package vertico
+  :ensure t
+  :demand t
   ;; :custom
   ;; (vertico-scroll-margin 0) ;; Different scroll margin
   ;; (vertico-count 20) ;; Show more candidates
   ;; (vertico-resize t) ;; Grow and shrink the Vertico minibuffer
   ;; (vertico-cycle t) ;; Enable cycling for `vertico-next/previous'
   :init
-  (vertico-mode 1))
+  (vertico-mode 1)
+  :config
+  ;; Disable competing completion UIs that can hide Vertico.
+  (when (fboundp 'fido-mode) (fido-mode -1))
+  (when (fboundp 'fido-vertical-mode) (fido-vertical-mode -1))
+  (when (fboundp 'ido-mode) (ido-mode -1))
+  (when (bound-and-true-p ivy-mode) (ivy-mode -1)))
 
 ;; Vertico leverages Orderless' flexible matching capabilities, allowing users
 ;; to input multiple patterns separated by spaces, which Orderless then
 ;; matches in any order against the candidates.
 (use-package orderless
+  :ensure t
+  :demand t
   :custom
   (completion-styles '(orderless basic))
   (completion-category-overrides '((file (styles partial-completion))))
@@ -216,7 +229,9 @@
 ;; Consult offers a suite of commands for efficient searching, previewing, and
 ;; interacting with buffers, file contents, and more, improving various tasks.
 (use-package consult
+  :ensure t
   ;; Replace bindings. Lazily loaded by `use-package'.
+  ;; Companion to Vertico (commands), not a separate UI.
   :bind (;; C-c bindings in `mode-specific-map'
          ("C-c M-x" . consult-mode-command)
          ("C-c h" . consult-history)
@@ -495,14 +510,14 @@
                       :box nil
                       :weight 'bold))
 
-;; A few examples
+;; treesit-fold only for real tree-sitter major modes.
+;; Racket: no racket-ts-mode / no racket grammar — use racket-xp-mode instead.
 (add-hook 'c-ts-mode-hook #'treesit-fold-mode)
 (add-hook 'c++-ts-mode-hook #'treesit-fold-mode)
 (add-hook 'php-ts-mode-hook #'treesit-fold-mode)
 (add-hook 'css-ts-mode-hook #'treesit-fold-mode)
 (add-hook 'html-ts-mode-hook #'treesit-fold-mode)
 (add-hook 'bash-ts-mode-hook #'treesit-fold-mode)
-(add-hook 'racket-ts-mode-hook #'treesit-fold-mode)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -790,8 +805,9 @@
 (setq column-number-mode t)
 (setq mode-line-position-column-line-format '("%l:%C"))
 
-;; Display of line numbers in the buffer:
-(setq-default display-line-numbers-type 'relative)
+;; Display of line numbers in the buffer (absolute: 1,2,3...).
+;; Previously 'relative, which looks descending above the cursor.
+(setq-default display-line-numbers-type t)
 (dolist (hook '(prog-mode-hook text-mode-hook conf-mode-hook))
   (add-hook hook #'display-line-numbers-mode))
 
@@ -974,8 +990,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; racket-mode
+;;;;; racket-mode (XP-centric; not tree-sitter)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Racket has no built-in racket-ts-mode and no installed tree-sitter
+;; grammar here. Structural help comes from racket-xp-mode (definitions,
+;; visits, check syntax-like feedback), not treesit-fold.
 
 (use-package racket-mode
   :ensure t
@@ -983,9 +1002,10 @@
   :commands (racket-mode
              racket-repl
              racket-run
-             racket-xp-mode)
+             racket-xp-mode
+             racket-xp-describe)
   :hook
-  ;; 編集バッファで XP（定義ジャンプ・エラー表示など）を有効化
+  ;; XP: check-syntax 相当・定義ジャンプ (M-.)・C-c C-. describe など
   (racket-mode . racket-xp-mode)
   ;; 好みで: paredit を Racket にも（既存の paredit 設定と揃える）
   ;; (racket-mode . paredit-mode)
@@ -995,6 +1015,7 @@
   ;; 初回だけ: バックエンド用の Racket パッケージを入れる
   ;; M-x racket-mode-start-faster  または
   ;; M-x racket-xp-mode 後に必要なら racket-mode の案内に従う
+  ;; XP 既定キー: M-. xref-find-definitions / C-c C-. racket-xp-describe
   )
 
 
